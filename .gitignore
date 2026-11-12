@@ -1,0 +1,16 @@
+# Ambientes virtuais
+.venv/
+venv/
+env/
+
+# Cache do Python
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Configurações locais do VS Code (opcional)
+.vscode/
+
+# Arquivos gerados pelo usuário durante testes
+*.png
+EOF
