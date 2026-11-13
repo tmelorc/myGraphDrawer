@@ -1,0 +1,82 @@
+{
+  "aplicacao": "myGraphDrawer",
+  "tipo": "nao_direcionado",
+  "proximo_id": 9,
+  "vertices": [
+    {
+      "id": 0,
+      "x": 242.0,
+      "y": 154.0
+    },
+    {
+      "id": 1,
+      "x": 616.0,
+      "y": 393.0
+    },
+    {
+      "id": 2,
+      "x": 299.0,
+      "y": 528.0
+    },
+    {
+      "id": 3,
+      "x": 601.0,
+      "y": 577.0
+    },
+    {
+      "id": 4,
+      "x": 739.0,
+      "y": 150.0
+    },
+    {
+      "id": 5,
+      "x": 464.0,
+      "y": 197.0
+    },
+    {
+      "id": 6,
+      "x": 904.0,
+      "y": 260.0
+    },
+    {
+      "id": 7,
+      "x": 901.0,
+      "y": 529.0
+    },
+    {
+      "id": 8,
+      "x": 758.0,
+      "y": 423.0
+    }
+  ],
+  "arestas": [
+    {
+      "origem": 1,
+      "destino": 2
+    },
+    {
+      "origem": 1,
+      "destino": 5
+    },
+    {
+      "origem": 3,
+      "destino": 4
+    },
+    {
+      "origem": 3,
+      "destino": 7
+    },
+    {
+      "origem": 4,
+      "destino": 5
+    },
+    {
+      "origem": 6,
+      "destino": 7
+    },
+    {
+      "origem": 7,
+      "destino": 8
+    }
+  ]
+}
