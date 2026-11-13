@@ -1,5 +1,5 @@
 import math
-from typing import Dict, List, Optional, Tuple
+from typing import Dict, List, Optional, Set, Tuple
 from PyQt6.QtCore import Qt, pyqtSignal
 from PyQt6.QtGui import QColor, QFont, QKeyEvent, QMouseEvent, QPainter, QPen
 from PyQt6.QtWidgets import QWidget
@@ -10,6 +10,7 @@ from modelo_grafo import ModeloGrafo
 class CanvasGrafo(QWidget):
     """
     Canvas 2D desenhado diretamente via QPainter (paintEvent) usando PyQt6.
+    Inclui destaque de vizinhança e arestas incidentes ao passar o mouse (hover).
     """
 
     grafo_alterado = pyqtSignal()
@@ -24,10 +25,13 @@ class CanvasGrafo(QWidget):
         self.modelo: ModeloGrafo = modelo
 
         self.setFocusPolicy(Qt.FocusPolicy.StrongFocus)
-        self.setMouseTracking(False)
+        self.setMouseTracking(True)
 
         # Estado de interação
         self.modo_aresta: bool = False
+        self._vertice_hover: Optional[int] = None
+        self._aresta_hover: Optional[Tuple[int, int]] = None
+
         self._vertice_selecionado: Optional[int] = None
         self._aresta_selecionada: Optional[Tuple[int, int]] = None
         self._origem_aresta: Optional[int] = None
@@ -45,18 +49,34 @@ class CanvasGrafo(QWidget):
         # Recursos gráficos pré-alocados
         self._cor_fundo = QColor("#f8f9fa")
         self._cor_vertice = QColor("#0066cc")
+        self._cor_vertice_hover = QColor("#0099ff")
+        self._cor_vertice_vizinho = QColor("#ff8800")
         self._cor_selecionado = QColor("#ff3300")
-        self._cor_origem_aresta = QColor("#ff7700")
+        self._cor_origem_aresta = QColor("#ff5500")
 
         self._pen_aresta = QPen(QColor("#333333"), 2.6,
                                 Qt.PenStyle.SolidLine, Qt.PenCapStyle.RoundCap)
+        self._pen_aresta_hover = QPen(
+            QColor("#ff7700"), 4.0, Qt.PenStyle.SolidLine, Qt.PenCapStyle.RoundCap)
         self._pen_aresta_sel = QPen(
             QColor("#ff3300"), 4.5, Qt.PenStyle.SolidLine, Qt.PenCapStyle.RoundCap)
+
         self._pen_borda_vertice = QPen(QColor("#ffffff"), 2.0)
+        self._pen_borda_destaque = QPen(QColor("#ffffff"), 2.6)
         self._pen_borda_sel = QPen(QColor("#ffffff"), 3.0)
         self._pen_texto = QPen(QColor("#ffffff"))
 
         self._fonte_vertice = QFont("Sans Serif", 10, QFont.Weight.Bold)
+
+        # Controle de arraste e clique
+        self._arrastando_vertice: Optional[int] = None
+        self._arrastando_aresta: Optional[Tuple[int, int]] = None
+        self._vertice_ja_estava_selecionado: bool = False
+        self._houve_arraste: bool = False
+        self._clique_inicial_x: float = 0.0
+        self._clique_inicial_y: float = 0.0
+        self._ultimo_x: float = 0.0
+        self._ultimo_y: float = 0.0
 
     # =========================================================================
     # 1. CONTROLE DE MODOS E SELEÇÃO
@@ -117,11 +137,13 @@ class CanvasGrafo(QWidget):
                 self._origem_aresta = None
             self.modelo.remover_vertice(vid)
             self._vertice_selecionado = None
+            self._vertice_hover = None
             alterou = True
         elif self._aresta_selecionada is not None:
             u, v = self._aresta_selecionada
             self.modelo.remover_aresta(u, v)
             self._aresta_selecionada = None
+            self._aresta_hover = None
             alterou = True
 
         if alterou:
@@ -131,6 +153,8 @@ class CanvasGrafo(QWidget):
 
     def limpar_tudo(self) -> None:
         self._origem_aresta = None
+        self._vertice_hover = None
+        self._aresta_hover = None
         self._limpar_selecao()
         self.limpar_destaques_algoritmos()
         self.modelo.limpar()
@@ -139,6 +163,8 @@ class CanvasGrafo(QWidget):
 
     def reconstruir_do_modelo(self) -> None:
         self._origem_aresta = None
+        self._vertice_hover = None
+        self._aresta_hover = None
         self._limpar_selecao()
         self.limpar_destaques_algoritmos()
         self.grafo_alterado.emit()
@@ -213,7 +239,7 @@ class CanvasGrafo(QWidget):
         return melhor
 
     # =========================================================================
-    # 5. RENDERIZAÇÃO
+    # 5. RENDERIZAÇÃO (COM DESTAQUE DE VIZINHANÇA)
     # =========================================================================
 
     def paintEvent(self, event) -> None:
@@ -221,14 +247,27 @@ class CanvasGrafo(QWidget):
         painter.setRenderHint(QPainter.RenderHint.Antialiasing, True)
         painter.fillRect(0, 0, self.width(), self.height(), self._cor_fundo)
 
+        # Obtém vizinhos do vértice atualmente sob o cursor
+        vizinhos_hover: Set[int] = set()
+        if self._vertice_hover is not None and self._vertice_hover in self.modelo.grafo:
+            vizinhos_hover = set(
+                self.modelo.grafo.neighbors(self._vertice_hover))
+
         # 1. Arestas
         for u, v in self.modelo.grafo.edges():
             chave = (min(u, v), max(u, v))
             ax, ay = self.modelo.posicoes[u]
             bx, by = self.modelo.posicoes[v]
 
+            incidente_no_hover = (
+                self._vertice_hover is not None and (
+                    u == self._vertice_hover or v == self._vertice_hover)
+            )
+
             if self._aresta_selecionada == chave:
                 painter.setPen(self._pen_aresta_sel)
+            elif self._aresta_hover == chave or incidente_no_hover:
+                painter.setPen(self._pen_aresta_hover)
             elif chave in self._cores_arestas_alg:
                 pen_alg = QPen(
                     self._cores_arestas_alg[chave], 4.5, Qt.PenStyle.SolidLine, Qt.PenCapStyle.RoundCap)
@@ -254,6 +293,12 @@ class CanvasGrafo(QWidget):
             elif self._vertice_selecionado == vid:
                 painter.setBrush(self._cor_selecionado)
                 painter.setPen(self._pen_borda_sel)
+            elif self._vertice_hover == vid:
+                painter.setBrush(self._cor_vertice_hover)
+                painter.setPen(self._pen_borda_destaque)
+            elif vid in vizinhos_hover:
+                painter.setBrush(self._cor_vertice_vizinho)
+                painter.setPen(self._pen_borda_destaque)
             elif vid in self._cores_vertices_alg:
                 painter.setBrush(self._cores_vertices_alg[vid])
                 painter.setPen(self._pen_borda_vertice)
@@ -311,6 +356,13 @@ class CanvasGrafo(QWidget):
         self.limpar_destaques_algoritmos()
 
         if vertice_clicado is not None:
+            # Registra se ele já estava selecionado antes deste clique
+            self._vertice_ja_estava_selecionado = (
+                self._vertice_selecionado == vertice_clicado)
+            self._houve_arraste = False
+            self._clique_inicial_x = x
+            self._clique_inicial_y = y
+
             self._limpar_selecao()
             self._vertice_selecionado = vertice_clicado
             self._arrastando_vertice = vertice_clicado
@@ -332,6 +384,7 @@ class CanvasGrafo(QWidget):
         self._limpar_selecao()
         novo_vid = self.criar_vertice(x, y)
         self._vertice_selecionado = novo_vid
+        self._vertice_hover = novo_vid
         self.update()
 
     def mouseMoveEvent(self, event: QMouseEvent) -> None:
@@ -339,10 +392,15 @@ class CanvasGrafo(QWidget):
         y = float(event.position().y())
 
         if self._arrastando_vertice is not None:
-            vid = self._arrastando_vertice
-            if vid in self.modelo.posicoes:
-                self.modelo.atualizar_posicao(vid, x, y)
-                self.update()
+            # Só considera arraste se o mouse deslocou pelo menos 3 pixels
+            if not self._houve_arraste and math.hypot(x - self._clique_inicial_x, y - self._clique_inicial_y) > 3.0:
+                self._houve_arraste = True
+
+            if self._houve_arraste:
+                vid = self._arrastando_vertice
+                if vid in self.modelo.posicoes:
+                    self.modelo.atualizar_posicao(vid, x, y)
+                    self.update()
             return
 
         if self._arrastando_aresta is not None:
@@ -358,21 +416,52 @@ class CanvasGrafo(QWidget):
                 self.modelo.atualizar_posicao(u, ux + dx, uy + dy)
                 self.modelo.atualizar_posicao(v, vx + dx, vy + dy)
                 self.update()
+            return
+
+        # Atualiza estado de hover (repinta apenas se o alvo sob o mouse mudar)
+        novo_v_hover = self._obter_vertice_em(x, y)
+        nova_a_hover = None if novo_v_hover is not None else self._obter_aresta_em(
+            x, y)
+
+        if novo_v_hover != self._vertice_hover or nova_a_hover != self._aresta_hover:
+            self._vertice_hover = novo_v_hover
+            self._aresta_hover = nova_a_hover
+            self.update()
 
     def mouseReleaseEvent(self, event: QMouseEvent) -> None:
         if event.button() == Qt.MouseButton.LeftButton:
+            # Se clicou em um vértice que já estava selecionado e não arrastou, tira a seleção
+            if (
+                self._arrastando_vertice is not None
+                and self._vertice_ja_estava_selecionado
+                and not self._houve_arraste
+            ):
+                self._vertice_selecionado = None
+                self.update()
+
             self._arrastando_vertice = None
+            self._vertice_ja_estava_selecionado = False
+            self._houve_arraste = False
+
             if self._arrastando_aresta is not None:
                 self._arrastando_aresta = None
                 if not self.modo_aresta:
                     self.unsetCursor()
 
+    def leaveEvent(self, event) -> None:
+        """Limpa o destaque de hover quando o cursor sai da área do canvas."""
+        if self._vertice_hover is not None or self._aresta_hover is not None:
+            self._vertice_hover = None
+            self._aresta_hover = None
+            self.update()
+        super().leaveEvent(event)
+
     def keyPressEvent(self, event: QKeyEvent) -> None:
-        if event.key() == Qt.Key.Key_E:
-            self.alternar_modo_aresta()
-        elif event.key() in (Qt.Key.Key_Delete, Qt.Key.Key_Backspace):
-            self.excluir_selecionados()
-        elif event.key() == Qt.Key.Key_Escape:
+        # if event.key() == Qt.Key.Key_E:
+        #     self.alternar_modo_aresta()
+        # elif event.key() in (Qt.Key.Key_Delete, Qt.Key.Key_Backspace):
+        #     self.excluir_selecionados()
+        if event.key() == Qt.Key.Key_Escape:
             if self._origem_aresta is not None:
                 self._origem_aresta = None
             elif self.modo_aresta:

@@ -1,82 +1,91 @@
 {
   "aplicacao": "myGraphDrawer",
   "tipo": "nao_direcionado",
-  "proximo_id": 9,
+  "proximo_id": 10,
   "vertices": [
     {
       "id": 0,
-      "x": 242.0,
-      "y": 154.0
+      "x": 411.0,
+      "y": 271.0
     },
     {
       "id": 1,
-      "x": 616.0,
-      "y": 393.0
+      "x": 709.0,
+      "y": 379.0
     },
     {
       "id": 2,
-      "x": 299.0,
-      "y": 528.0
+      "x": 288.0,
+      "y": 480.0
     },
     {
       "id": 3,
-      "x": 601.0,
-      "y": 577.0
+      "x": 166.0,
+      "y": 213.0
     },
     {
       "id": 4,
-      "x": 739.0,
-      "y": 150.0
+      "x": 551.0,
+      "y": 155.0
     },
     {
       "id": 5,
-      "x": 464.0,
-      "y": 197.0
+      "x": 349.0,
+      "y": 140.0
     },
     {
       "id": 6,
-      "x": 904.0,
-      "y": 260.0
+      "x": 469.0,
+      "y": 598.0
     },
     {
       "id": 7,
-      "x": 901.0,
-      "y": 529.0
+      "x": 695.0,
+      "y": 568.0
     },
     {
       "id": 8,
-      "x": 758.0,
-      "y": 423.0
+      "x": 576.0,
+      "y": 363.0
+    },
+    {
+      "id": 9,
+      "x": 334.0,
+      "y": 320.0
     }
   ],
   "arestas": [
+    {
+      "origem": 0,
+      "destino": 4
+    },
     {
       "origem": 1,
       "destino": 2
     },
     {
       "origem": 1,
-      "destino": 5
-    },
-    {
-      "origem": 3,
       "destino": 4
     },
     {
-      "origem": 3,
-      "destino": 7
+      "origem": 2,
+      "destino": 3
     },
     {
-      "origem": 4,
-      "destino": 5
+      "origem": 5,
+      "destino": 9
     },
     {
       "origem": 6,
-      "destino": 7
+      "destino": 8
     },
     {
       "origem": 7,
       "destino": 8
+    },
+    {
+      "origem": 8,
+      "destino": 9
     }
   ]
 }

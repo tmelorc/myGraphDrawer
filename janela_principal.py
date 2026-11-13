@@ -4,10 +4,12 @@ from PyQt6.QtGui import QAction, QColor, QKeySequence
 from PyQt6.QtWidgets import (
     QApplication,
     QComboBox,
+    QDialog,
+    QDialogButtonBox,
     QFileDialog,
+    QFormLayout,
     QHBoxLayout,
     QHeaderView,
-    QInputDialog,
     QLabel,
     QMainWindow,
     QMessageBox,
@@ -86,10 +88,12 @@ class JanelaPrincipal(QMainWindow):
         self.acao_sair.triggered.connect(self.close)
 
         self.acao_modo_aresta = QAction("Modo Aresta (E)", self)
+        self.acao_modo_aresta.setShortcut("E")
         self.acao_modo_aresta.setCheckable(True)
         self.acao_modo_aresta.triggered.connect(self.cena.definir_modo_aresta)
 
         self.acao_excluir = QAction("Excluir Selecionado (Del)", self)
+        self.acao_excluir.setShortcut("Delete")
         self.acao_excluir.triggered.connect(self.cena.excluir_selecionados)
 
         self.acao_caminho_minimo = QAction("Caminho Mínimo...", self)
@@ -320,21 +324,39 @@ class JanelaPrincipal(QMainWindow):
         selecionados = self.cena.obter_vertices_selecionados()
         idx_origem = opcoes.index(str(selecionados[0])) if len(
             selecionados) >= 1 else 0
-        idx_destino = min(1, len(opcoes) - 1)
+        idx_destino = min(1, len(opcoes) - 1) if idx_origem == 0 else 0
 
-        origem_str, ok1 = QInputDialog.getItem(
-            self, "Caminho Mínimo", "Vértice de Origem:", opcoes, idx_origem, False
+        # Cria o diálogo único com Origem e Destino
+        dialogo = QDialog(self)
+        dialogo.setWindowTitle("Caminho Mínimo")
+        dialogo.setMinimumWidth(260)
+
+        layout = QFormLayout(dialogo)
+
+        combo_origem = QComboBox(dialogo)
+        combo_origem.addItems(opcoes)
+        combo_origem.setCurrentIndex(idx_origem)
+
+        combo_destino = QComboBox(dialogo)
+        combo_destino.addItems(opcoes)
+        combo_destino.setCurrentIndex(idx_destino)
+
+        layout.addRow("Vértice de Origem:", combo_origem)
+        layout.addRow("Vértice de Destino:", combo_destino)
+
+        botoes = QDialogButtonBox(
+            QDialogButtonBox.StandardButton.Ok | QDialogButtonBox.StandardButton.Cancel,
+            parent=dialogo,
         )
-        if not ok1:
+        botoes.accepted.connect(dialogo.accept)
+        botoes.rejected.connect(dialogo.reject)
+        layout.addRow(botoes)
+
+        if dialogo.exec() != QDialog.DialogCode.Accepted:
             return
 
-        destino_str, ok2 = QInputDialog.getItem(
-            self, "Caminho Mínimo", "Vértice de Destino:", opcoes, idx_destino, False
-        )
-        if not ok2:
-            return
-
-        u, v = int(origem_str), int(destino_str)
+        u = int(combo_origem.currentText())
+        v = int(combo_destino.currentText())
         caminho = self.modelo.calcular_caminho_minimo(u, v)
 
         if caminho is None:
