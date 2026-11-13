@@ -219,6 +219,13 @@ class ModeloGrafo:
             return "Sim"
         return "Sim" if nx.is_bipartite(self.grafo) else "Não"
 
+    @registrar_metrica("Planar")
+    def metrica_planar(self) -> str:
+        if self.grafo.number_of_nodes() < 5:
+            return "Sim"
+        eh_planar, _ = nx.check_planarity(self.grafo)
+        return "Sim" if eh_planar else "Não"
+
     # =========================================================================
     # 5. PERSISTÊNCIA EM JSON (SALVAR E ABRIR)
     # =========================================================================
