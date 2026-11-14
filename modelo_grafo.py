@@ -207,24 +207,76 @@ class ModeloGrafo:
             return 0
         return nx.number_connected_components(self.grafo)
 
-    @registrar_metrica("É Árvore?")
-    def metrica_arvore(self) -> str:
-        if self.grafo.number_of_nodes() == 0:
-            return "Não"
-        return "Sim" if nx.is_tree(self.grafo) else "Não"
-
-    @registrar_metrica("É Bipartido?")
-    def metrica_bipartido(self) -> str:
-        if self.grafo.number_of_nodes() == 0:
-            return "Sim"
-        return "Sim" if nx.is_bipartite(self.grafo) else "Não"
-
     @registrar_metrica("Planar")
     def metrica_planar(self) -> str:
         if self.grafo.number_of_nodes() < 5:
             return "Sim"
         eh_planar, _ = nx.check_planarity(self.grafo)
         return "Sim" if eh_planar else "Não"
+
+    @registrar_metrica("Hamiltoniano")
+    def metrica_hamiltoniano(self) -> str:
+        n = self.grafo.number_of_nodes()
+        if n < 3:
+            return "Não"
+
+        # 1. Condições necessárias rápidas (podas O(V + E))
+        if not nx.is_connected(self.grafo):
+            return "Não"
+        if any(grau < 2 for _, grau in self.grafo.degree()):
+            return "Não"
+        # Um grafo hamiltoniano não pode ter vértices de corte (articulation points)
+        if any(True for _ in nx.articulation_points(self.grafo)):
+            return "Não"
+
+        # 2. Condição suficiente de Dirac (O(V)): se grau mínimo >= n/2, é garantidamente Hamiltoniano
+        if min(grau for _, grau in self.grafo.degree()) >= n / 2:
+            return "Sim"
+
+        # 3. Proteção contra explosão combinatorial em grafos grandes e esparsos
+        if n > 25:
+            return "Indeterminado (n > 25)"
+
+        # 4. Backtracking exato ordenando vizinhos pelo menor grau (heurística de Warnsdorff)
+        nos = list(self.grafo.nodes())
+        inicio = min(nos, key=lambda v: self.grafo.degree(v))
+        adj = {
+            u: sorted(self.grafo.neighbors(u),
+                      key=lambda v: self.grafo.degree(v))
+            for u in nos
+        }
+        visitados = {inicio}
+
+        def _buscar_ciclo(atual: int, profundidade: int) -> bool:
+            if profundidade == n:
+                return inicio in adj[atual]
+            for vizinho in adj[atual]:
+                if vizinho not in visitados:
+                    visitados.add(vizinho)
+                    if _buscar_ciclo(vizinho, profundidade + 1):
+                        return True
+                    visitados.remove(vizinho)
+            return False
+
+        return "Sim" if _buscar_ciclo(inicio, 1) else "Não"
+
+    @registrar_metrica("Euleriano")
+    def metrica_euleriano(self) -> str:
+        if self.grafo.number_of_nodes() == 0:
+            return "Não"
+        return "Sim" if nx.is_eulerian(self.grafo) else "Não"
+
+    @registrar_metrica("Árvore")
+    def metrica_arvore(self) -> str:
+        if self.grafo.number_of_nodes() == 0:
+            return "Não"
+        return "Sim" if nx.is_tree(self.grafo) else "Não"
+
+    @registrar_metrica("Bipartido")
+    def metrica_bipartido(self) -> str:
+        if self.grafo.number_of_nodes() == 0:
+            return "Sim"
+        return "Sim" if nx.is_bipartite(self.grafo) else "Não"
 
     # =========================================================================
     # 5. PERSISTÊNCIA EM JSON (SALVAR E ABRIR)
@@ -272,3 +324,66 @@ class ModeloGrafo:
         # Garante que o contador respeite o maior ID salvo ou o valor explícito
         if "proximo_id" in dados:
             self._proximo_id = max(self._proximo_id, int(dados["proximo_id"]))
+
+    # =========================================================================
+    # 6. Encontrar caminho Hamiltoniano (Backtracking com heurística de Warnsdorff)
+    # =========================================================================
+    def encontrar_caminho_hamiltoniano(self) -> Optional[List[int]]:
+        """
+        Retorna uma lista ordenada de vértices formando um Caminho Hamiltoniano,
+        ou None se não existir (ou se o grafo exceder o limite seguro).
+        """
+        n = self.grafo.number_of_nodes()
+        if n == 0:
+            return None
+        if n == 1:
+            return list(self.grafo.nodes())
+
+        # Podas rápidas O(V + E): todo caminho hamiltoniano exige grafo conexo
+        # e no máximo 2 vértices de grau 1 (as pontas do caminho)
+        if not nx.is_connected(self.grafo):
+            return None
+
+        nos = list(self.grafo.nodes())
+        pontas = [v for v in nos if self.grafo.degree(v) == 1]
+        if len(pontas) > 2:
+            return None
+
+        # Limite de segurança para evitar travamento da interface em grafos muito grandes
+        if n > 25:
+            return None
+
+        # Ordena vizinhos pelo menor grau (heurística de Warnsdorff) para acelerar a busca
+        adj = {
+            u: sorted(self.grafo.neighbors(u),
+                      key=lambda v: self.grafo.degree(v))
+            for u in nos
+        }
+
+        # Se houver vértices de grau 1, o caminho obrigatoriamente começa por um deles
+        candidatos_inicio = pontas if pontas else sorted(
+            nos, key=lambda v: self.grafo.degree(v))
+
+        caminho: List[int] = []
+        visitados: set[int] = set()
+
+        def _backtrack(atual: int) -> bool:
+            if len(caminho) == n:
+                return True
+            for vizinho in adj[atual]:
+                if vizinho not in visitados:
+                    visitados.add(vizinho)
+                    caminho.append(vizinho)
+                    if _backtrack(vizinho):
+                        return True
+                    caminho.pop()
+                    visitados.remove(vizinho)
+            return False
+
+        for inicio in candidatos_inicio:
+            caminho = [inicio]
+            visitados = {inicio}
+            if _backtrack(inicio):
+                return caminho
+
+        return None

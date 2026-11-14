@@ -36,7 +36,7 @@ class JanelaPrincipal(QMainWindow):
     def __init__(self) -> None:
         super().__init__()
         self.setWindowTitle("myGraphDrawer — Editor e Analisador de Grafos")
-        self.resize(1200, 760)
+        self.resize(1200, 900)
 
         self._arquivo_atual: str = ""
 
@@ -114,6 +114,12 @@ class JanelaPrincipal(QMainWindow):
         self.acao_selecionar_tudo.setShortcut("Ctrl+A")
         self.acao_selecionar_tudo.triggered.connect(self.cena.selecionar_tudo)
 
+        self.acao_caminho_hamiltoniano = QAction(
+            "Caminho Hamiltoniano", self)
+        self.acao_caminho_hamiltoniano.triggered.connect(
+            self.cena.destacar_caminho_hamiltoniano
+        )
+
     def _criar_menus(self) -> None:
         barra_menu = self.menuBar()
 
@@ -133,6 +139,7 @@ class JanelaPrincipal(QMainWindow):
         menu_editar.addAction(self.acao_modo_aresta)
 
         menu_algoritmos = barra_menu.addMenu("A&lgoritmos")
+        menu_algoritmos.addAction(self.acao_caminho_hamiltoniano)
         menu_algoritmos.addAction(self.acao_caminho_minimo)
         menu_algoritmos.addAction(self.acao_componentes)
         menu_algoritmos.addSeparator()

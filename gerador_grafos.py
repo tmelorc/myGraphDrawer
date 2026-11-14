@@ -1,9 +1,8 @@
-# bug: layout do grafo caminho está errado, todo vértice na mesma coord.
 from dataclasses import dataclass
 from typing import Callable, Dict, List, Optional, Tuple
 import networkx as nx
-from PyQt6.QtGui import QAction
-from PyQt6.QtWidgets import QInputDialog, QMenu, QWidget
+from PyQt6.QtGui import QAction, QIntValidator
+from PyQt6.QtWidgets import QInputDialog, QMenu, QWidget, QDialog, QFormLayout, QSpinBox, QDialogButtonBox, QLineEdit
 
 from canvas_grafo import CanvasGrafo
 
@@ -150,17 +149,57 @@ def _gerar_estrela(parent: QWidget):
 
 @registrar_grafo("Bipartido Completo (K_{m,n})...", separador_antes=True)
 def _gerar_bipartido_completo(parent: QWidget):
-    m, ok1 = QInputDialog.getInt(
-        parent, "Bipartido Completo", "Tamanho da partição A (m):", 3, 1, 20, 1)
-    if not ok1:
+    dialogo = QDialog(parent)
+    dialogo.setWindowTitle("Bipartido Completo (K_{m,n})")
+    dialogo.setMinimumWidth(300)
+
+    layout = QFormLayout(dialogo)
+    validador = QIntValidator(1, 10, dialogo)
+
+    campo_m = QLineEdit(dialogo)
+    campo_m.setValidator(validador)
+    campo_m.setPlaceholderText("10 ≥ m ≥ 1")
+    campo_m.setText("3")
+    campo_m.selectAll()
+
+    campo_n = QLineEdit(dialogo)
+    campo_n.setValidator(validador)
+    campo_n.setPlaceholderText("10 ≥ n ≥ 1")
+    campo_n.setText("3")
+    campo_n.selectAll()
+
+    layout.addRow("Tamanho da partição A (m):", campo_m)
+    layout.addRow("Tamanho da partição B (n):", campo_n)
+
+    botoes = QDialogButtonBox(
+        QDialogButtonBox.StandardButton.Ok | QDialogButtonBox.StandardButton.Cancel,
+        parent=dialogo,
+    )
+    botoes.accepted.connect(dialogo.accept)
+    botoes.rejected.connect(dialogo.reject)
+    layout.addRow(botoes)
+
+    btn_ok = botoes.button(QDialogButtonBox.StandardButton.Ok)
+
+    def _atualizar_estado_ok() -> None:
+        ambos_validos = campo_m.hasAcceptableInput() and campo_n.hasAcceptableInput()
+        btn_ok.setEnabled(ambos_validos)
+
+    campo_m.textChanged.connect(_atualizar_estado_ok)
+    campo_n.textChanged.connect(_atualizar_estado_ok)
+    _atualizar_estado_ok()
+
+    campo_m.setFocus()
+
+    # Exibe o diálogo de forma modal e aguarda a resposta do usuário
+    if dialogo.exec() != QDialog.DialogCode.Accepted:
         return None
-    n, ok2 = QInputDialog.getInt(
-        parent, "Bipartido Completo", "Tamanho da partição B (n):", 3, 1, 20, 1)
-    if not ok2:
-        return None
+
+    m, n = int(campo_m.text()), int(campo_n.text())
+
     g = nx.complete_bipartite_graph(m, n)
     particao_a = list(range(m))
-    pos = nx.bipartite_layout(g, particao_a, align="vertical")
+    pos = nx.bipartite_layout(g, particao_a, align="horizontal")
     return g, pos
 
 
@@ -187,6 +226,23 @@ def _gerar_petersen(parent: QWidget):
     g = nx.petersen_graph()
     # Layout clássico: pentágono externo (0..4) e pentagrama interno (5..9)
     pos = nx.shell_layout(g, nlist=[list(range(5, 10)), list(range(0, 5))])
+    return g, pos
+
+
+@registrar_grafo("Tetraedro")
+def _gerar_tetraedro(parent: QWidget):
+    g = nx.tetrahedral_graph()
+    # Projeção planar clássica: 1 vértice central (0) e triângulo externo (1, 2, 3)
+    # pos = nx.shell_layout(g, nlist=[[0], [1, 2, 3]])
+    pos = nx.spring_layout(g)
+    return g, pos
+
+
+@registrar_grafo("Octaedro")
+def _gerar_octaedro(parent: QWidget):
+    g = nx.octahedral_graph()
+    # Projeção planar clássica: 1 vértice central (0) e triângulo externo (1, 2, 3)
+    pos = nx.spring_layout(g)
     return g, pos
 
 
