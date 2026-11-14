@@ -15,7 +15,7 @@ class CanvasGrafo(QWidget):
 
     grafo_alterado = pyqtSignal()
     modo_alterado = pyqtSignal(bool)
-    mensagem_status = pyqtSignal(str)
+    mensagem_status = pyqtSignal(str, int)
 
     RAIO_VERTICE = 18
     TOLERANCIA_ARESTA = 8.0
@@ -94,12 +94,12 @@ class CanvasGrafo(QWidget):
         if self.modo_aresta:
             self.setCursor(Qt.CursorShape.CrossCursor)
             self.mensagem_status.emit(
-                "Modo Aresta (E) ATIVO: Clique no vértice de origem e depois no vértice de destino."
+                "Modo Aresta (E) ATIVO: Clique no vértice de origem e depois no vértice de destino.", 0
             )
         else:
             self.unsetCursor()
             self.mensagem_status.emit(
-                "Modo Padrão: Clique no vazio cria vértice | Arraste vértices/arestas | Del remove."
+                "Modo Padrão: Clique no vazio cria vértice | Arraste vértices/arestas | Del remove.", 0
             )
         self.update()
 
@@ -122,7 +122,7 @@ class CanvasGrafo(QWidget):
         if self._vertices_selecionados:
             self.mensagem_status.emit(
                 f"Selecionados: {len(self._vertices_selecionados)} vértice(s) e "
-                f"{len(self._arestas_selecionadas)} aresta(s). Pressione Del para excluir."
+                f"{len(self._arestas_selecionadas)} aresta(s). Pressione Del para excluir ou ESC para cancelar.", 0
             )
         self.update()
 
@@ -169,6 +169,18 @@ class CanvasGrafo(QWidget):
         self._vertice_hover = None
         self._aresta_hover = None
         self.limpar_destaques_algoritmos()
+
+        # Reinicia completamente o modelo (incluindo o contador de IDs) se o grafo ficou vazio
+        if self.modelo.grafo.number_of_nodes() == 0:
+            self.modelo.limpar()
+            self.mensagem_status.emit(
+                "Grafo deletado.", 2000)
+        # else:
+        #     self.mensagem_status.emit(
+        #         f"Removido(s): {qtd_v} vértice(s) e {qtd_a} aresta(s).",
+        #         2000,
+        #     )
+
         self.grafo_alterado.emit()
         self.update()
 
@@ -203,6 +215,7 @@ class CanvasGrafo(QWidget):
         self.limpar_destaques_algoritmos()
         self.modelo.limpar()
         self.grafo_alterado.emit()
+        # self.mensagem_status.emit("Grafo deletado", 2000)
         self.update()
 
     def reconstruir_do_modelo(self) -> None:
@@ -376,22 +389,23 @@ class CanvasGrafo(QWidget):
                 self._origem_aresta = vertice_clicado if vertice_clicado is not None else self.criar_vertice(
                     x, y)
                 self.mensagem_status.emit(
-                    f"Origem: vértice {self._origem_aresta}. Clique no vértice de destino (ou no vazio para criar)."
+                    f"Origem: vértice {self._origem_aresta}. Clique no vértice de destino (ou no vazio para criar).", 0
                 )
             else:
                 if vertice_clicado == self._origem_aresta:
                     self._origem_aresta = None
-                    self.mensagem_status.emit("Seleção de origem cancelada.")
+                    self.mensagem_status.emit(
+                        "Seleção de origem cancelada.", 0)
                 else:
                     destino = vertice_clicado if vertice_clicado is not None else self.criar_vertice(
                         x, y)
                     criada = self.criar_aresta(self._origem_aresta, destino)
                     if criada:
                         self.mensagem_status.emit(
-                            f"Aresta {{{self._origem_aresta}, {destino}}} criada.")
+                            f"Aresta {{{self._origem_aresta}, {destino}}} criada.", 0)
                     else:
                         self.mensagem_status.emit(
-                            f"Aresta entre {self._origem_aresta} e {destino} já existe.")
+                            f"Aresta entre {self._origem_aresta} e {destino} já existe.", 0)
                     self._origem_aresta = None
             self.update()
             return
@@ -418,7 +432,7 @@ class CanvasGrafo(QWidget):
         aresta_clicada = self._obter_aresta_em(x, y)
         if aresta_clicada is not None:
             self._limpar_selecao()
-            self._aresta_selecionadas.add(aresta_clicada)
+            self._arestas_selecionadas.add(aresta_clicada)
             self._arrastando_aresta = aresta_clicada
             self._ultimo_x = x
             self._ultimo_y = y
@@ -510,11 +524,14 @@ class CanvasGrafo(QWidget):
         if event.key() == Qt.Key.Key_Escape:
             if self._origem_aresta is not None:
                 self._origem_aresta = None
+                self.mensagem_status.emit("", 0)
             elif self.modo_aresta:
                 self.definir_modo_aresta(False)
+                self.mensagem_status.emit("", 0)
             else:
                 self._limpar_selecao()
                 self.limpar_destaques_algoritmos()
+                self.mensagem_status.emit("", 0)
             self.update()
         else:
             super().keyPressEvent(event)

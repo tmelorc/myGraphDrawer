@@ -60,7 +60,8 @@ class JanelaPrincipal(QMainWindow):
 
         self.cena.grafo_alterado.connect(self.atualizar_painel_analise)
         self.cena.modo_alterado.connect(self._ao_alterar_modo)
-        self.cena.mensagem_status.connect(self._exibir_mensagem_status)
+        # self.cena.mensagem_status.connect(self._exibir_mensagem_status)
+        self.cena.mensagem_status.connect(self.statusBar().showMessage)
 
         self.atualizar_painel_analise()
 
@@ -131,7 +132,7 @@ class JanelaPrincipal(QMainWindow):
         menu_editar.addSeparator()
         menu_editar.addAction(self.acao_modo_aresta)
 
-        menu_algoritmos = barra_menu.addMenu("Al&goritmos")
+        menu_algoritmos = barra_menu.addMenu("A&lgoritmos")
         menu_algoritmos.addAction(self.acao_caminho_minimo)
         menu_algoritmos.addAction(self.acao_componentes)
         menu_algoritmos.addSeparator()

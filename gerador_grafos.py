@@ -58,9 +58,19 @@ def _normalizar_layout(
     area_h = max(120.0, altura - 2.0 * margem)
 
     # Mantém a proporção (aspect ratio) do layout original do NetworkX
-    escala_x = area_w / span_x if span_x > 1e-9 else 1.0
-    escala_y = area_h / span_y if span_y > 1e-9 else 1.0
-    escala = min(escala_x, escala_y)
+    # escala_x = area_w / span_x if span_x > 1e-9 else 1.0
+    # escala_y = area_h / span_y if span_y > 1e-9 else 1.0
+    # escala = min(escala_x, escala_y)
+
+    # Mantém a proporção (aspect ratio) do layout original do NetworkX,
+    # ignorando eixos degenerados (onde todos os pontos estão alinhados)
+    escalas_validas = []
+    if span_x > 1e-9:
+        escalas_validas.append(area_w / span_x)
+    if span_y > 1e-9:
+        escalas_validas.append(area_h / span_y)
+
+    escala = min(escalas_validas) if escalas_validas else 1.0
 
     centro_nx_x = (min_x + max_x) / 2.0
     centro_nx_y = (min_y + max_y) / 2.0
@@ -271,5 +281,5 @@ class GerenciadorGrafosPredefinidos:
         self.canvas.reconstruir_do_modelo()
         self.canvas.mensagem_status.emit(
             f"Grafo '{definicao.nome.replace('...', '')}' carregado "
-            f"({grafo_limpo.number_of_nodes()} vértices, {grafo_limpo.number_of_edges()} arestas)."
+            f"({grafo_limpo.number_of_nodes()} vértices, {grafo_limpo.number_of_edges()} arestas).", 3000
         )
