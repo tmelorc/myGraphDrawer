@@ -32,8 +32,9 @@ class CanvasGrafo(QWidget):
         self._vertice_hover: Optional[int] = None
         self._aresta_hover: Optional[Tuple[int, int]] = None
 
-        self._vertice_selecionado: Optional[int] = None
-        self._aresta_selecionada: Optional[Tuple[int, int]] = None
+        # Estado de seleção múltipla
+        self._vertices_selecionados: Set[int] = set()
+        self._arestas_selecionadas: Set[Tuple[int, int]] = set()
         self._origem_aresta: Optional[int] = None
 
         # Controle de arraste
@@ -47,7 +48,7 @@ class CanvasGrafo(QWidget):
         self._cores_arestas_alg: Dict[Tuple[int, int], QColor] = {}
 
         # Recursos gráficos pré-alocados
-        self._cor_fundo = QColor("#f8f9fa")
+        self._cor_fundo = QColor("#ffffff")
         self._cor_vertice = QColor("#0066cc")
         self._cor_vertice_hover = QColor("#0099ff")
         self._cor_vertice_vizinho = QColor("#ff8800")
@@ -106,12 +107,31 @@ class CanvasGrafo(QWidget):
         self.definir_modo_aresta(not self.modo_aresta)
 
     def _limpar_selecao(self) -> None:
-        self._vertice_selecionado = None
-        self._aresta_selecionada = None
+        # self._vertice_selecionado = None
+        # self._aresta_selecionada = None
+        self._vertices_selecionados.clear()
+        self._arestas_selecionadas.clear()
+
+    def selecionar_tudo(self) -> None:
+        """Seleciona todos os vértices e arestas do grafo atual."""
+        self.limpar_destaques_algoritmos()
+        self._vertices_selecionados = set(self.modelo.grafo.nodes())
+        self._arestas_selecionadas = {
+            (min(u, v), max(u, v)) for u, v in self.modelo.grafo.edges()
+        }
+        if self._vertices_selecionados:
+            self.mensagem_status.emit(
+                f"Selecionados: {len(self._vertices_selecionados)} vértice(s) e "
+                f"{len(self._arestas_selecionadas)} aresta(s). Pressione Del para excluir."
+            )
+        self.update()
+
+    # usado antes do Ctrl+A
+    # def obter_vertices_selecionados(self) -> List[int]:
+    #     return [self._vertice_selecionado] if self._vertice_selecionado is not None else []
 
     def obter_vertices_selecionados(self) -> List[int]:
-        return [self._vertice_selecionado] if self._vertice_selecionado is not None else []
-
+        return sorted(self._vertices_selecionados)
     # =========================================================================
     # 2. OPERAÇÕES NO GRAFO
     # =========================================================================
@@ -130,26 +150,50 @@ class CanvasGrafo(QWidget):
         return criada
 
     def excluir_selecionados(self) -> None:
-        alterou = False
-        if self._vertice_selecionado is not None:
-            vid = self._vertice_selecionado
+        if not self._vertices_selecionados and not self._arestas_selecionadas:
+            return
+
+        # 1. Remove arestas selecionadas primeiro (que ainda existam)
+        for u, v in list(self._arestas_selecionadas):
+            if self.modelo.grafo.has_edge(u, v):
+                self.modelo.remover_aresta(u, v)
+
+        # 2. Remove vértices selecionados (o NetworkX remove arestas incidentes automaticamente)
+        for vid in list(self._vertices_selecionados):
             if self._origem_aresta == vid:
                 self._origem_aresta = None
-            self.modelo.remover_vertice(vid)
-            self._vertice_selecionado = None
-            self._vertice_hover = None
-            alterou = True
-        elif self._aresta_selecionada is not None:
-            u, v = self._aresta_selecionada
-            self.modelo.remover_aresta(u, v)
-            self._aresta_selecionada = None
-            self._aresta_hover = None
-            alterou = True
+            if vid in self.modelo.grafo:
+                self.modelo.remover_vertice(vid)
 
-        if alterou:
-            self.limpar_destaques_algoritmos()
-            self.grafo_alterado.emit()
-            self.update()
+        self._limpar_selecao()
+        self._vertice_hover = None
+        self._aresta_hover = None
+        self.limpar_destaques_algoritmos()
+        self.grafo_alterado.emit()
+        self.update()
+
+    # usada antes do Ctrl+A
+    # def excluir_selecionados(self) -> None:
+    #     alterou = False
+    #     if self._vertice_selecionado is not None:
+    #         vid = self._vertice_selecionado
+    #         if self._origem_aresta == vid:
+    #             self._origem_aresta = None
+    #         self.modelo.remover_vertice(vid)
+    #         self._vertice_selecionado = None
+    #         self._vertice_hover = None
+    #         alterou = True
+    #     elif self._aresta_selecionada is not None:
+    #         u, v = self._aresta_selecionada
+    #         self.modelo.remover_aresta(u, v)
+    #         self._aresta_selecionada = None
+    #         self._aresta_hover = None
+    #         alterou = True
+
+    #     if alterou:
+    #         self.limpar_destaques_algoritmos()
+    #         self.grafo_alterado.emit()
+    #         self.update()
 
     def limpar_tudo(self) -> None:
         self._origem_aresta = None
@@ -264,7 +308,7 @@ class CanvasGrafo(QWidget):
                     u == self._vertice_hover or v == self._vertice_hover)
             )
 
-            if self._aresta_selecionada == chave:
+            if chave in self._arestas_selecionadas:
                 painter.setPen(self._pen_aresta_sel)
             elif self._aresta_hover == chave or incidente_no_hover:
                 painter.setPen(self._pen_aresta_hover)
@@ -290,7 +334,7 @@ class CanvasGrafo(QWidget):
             if self._origem_aresta == vid:
                 painter.setBrush(self._cor_origem_aresta)
                 painter.setPen(self._pen_borda_sel)
-            elif self._vertice_selecionado == vid:
+            elif vid in self._vertices_selecionados:
                 painter.setBrush(self._cor_selecionado)
                 painter.setPen(self._pen_borda_sel)
             elif self._vertice_hover == vid:
@@ -358,13 +402,15 @@ class CanvasGrafo(QWidget):
         if vertice_clicado is not None:
             # Registra se ele já estava selecionado antes deste clique
             self._vertice_ja_estava_selecionado = (
-                self._vertice_selecionado == vertice_clicado)
+                self._vertices_selecionados == {vertice_clicado}
+                and not self._arestas_selecionadas
+            )
             self._houve_arraste = False
             self._clique_inicial_x = x
             self._clique_inicial_y = y
 
             self._limpar_selecao()
-            self._vertice_selecionado = vertice_clicado
+            self._vertices_selecionados.add(vertice_clicado)
             self._arrastando_vertice = vertice_clicado
             self.update()
             return
@@ -372,7 +418,7 @@ class CanvasGrafo(QWidget):
         aresta_clicada = self._obter_aresta_em(x, y)
         if aresta_clicada is not None:
             self._limpar_selecao()
-            self._aresta_selecionada = aresta_clicada
+            self._aresta_selecionadas.add(aresta_clicada)
             self._arrastando_aresta = aresta_clicada
             self._ultimo_x = x
             self._ultimo_y = y
@@ -383,7 +429,7 @@ class CanvasGrafo(QWidget):
         # Clicou no vazio: cria vértice
         self._limpar_selecao()
         novo_vid = self.criar_vertice(x, y)
-        self._vertice_selecionado = novo_vid
+        self._vertices_selecionados.add(novo_vid)
         self._vertice_hover = novo_vid
         self.update()
 
@@ -436,7 +482,7 @@ class CanvasGrafo(QWidget):
                 and self._vertice_ja_estava_selecionado
                 and not self._houve_arraste
             ):
-                self._vertice_selecionado = None
+                self._limpar_selecao()
                 self.update()
 
             self._arrastando_vertice = None

@@ -25,6 +25,7 @@ from PyQt6.QtWidgets import (
 
 from canvas_grafo import CanvasGrafo
 from modelo_grafo import ModeloGrafo
+from gerador_grafos import GerenciadorGrafosPredefinidos
 
 
 class JanelaPrincipal(QMainWindow):
@@ -108,6 +109,10 @@ class JanelaPrincipal(QMainWindow):
         self.acao_limpar_destaques.triggered.connect(
             self.cena.limpar_destaques_algoritmos)
 
+        self.acao_selecionar_tudo = QAction("Selecionar Tudo", self)
+        self.acao_selecionar_tudo.setShortcut("Ctrl+A")
+        self.acao_selecionar_tudo.triggered.connect(self.cena.selecionar_tudo)
+
     def _criar_menus(self) -> None:
         barra_menu = self.menuBar()
 
@@ -121,8 +126,10 @@ class JanelaPrincipal(QMainWindow):
         menu_arquivo.addAction(self.acao_sair)
 
         menu_editar = barra_menu.addMenu("&Editar")
-        menu_editar.addAction(self.acao_modo_aresta)
+        menu_editar.addAction(self.acao_selecionar_tudo)
         menu_editar.addAction(self.acao_excluir)
+        menu_editar.addSeparator()
+        menu_editar.addAction(self.acao_modo_aresta)
 
         menu_algoritmos = barra_menu.addMenu("Al&goritmos")
         menu_algoritmos.addAction(self.acao_caminho_minimo)
@@ -130,15 +137,19 @@ class JanelaPrincipal(QMainWindow):
         menu_algoritmos.addSeparator()
         menu_algoritmos.addAction(self.acao_limpar_destaques)
 
+        self.gerenciador_grafos = GerenciadorGrafosPredefinidos(
+            self, self.cena)
+        self.gerenciador_grafos.instalar_no_menubar(barra_menu)
+
     def _criar_toolbar(self) -> None:
         toolbar = QToolBar("Ferramentas Principais", self)
         toolbar.setMovable(False)
         self.addToolBar(toolbar)
 
-        toolbar.addAction(self.acao_novo)
-        toolbar.addAction(self.acao_abrir)
-        toolbar.addAction(self.acao_salvar)
-        toolbar.addSeparator()
+        # toolbar.addAction(self.acao_novo)
+        # toolbar.addAction(self.acao_abrir)
+        # toolbar.addAction(self.acao_salvar)
+        # toolbar.addSeparator()
         toolbar.addAction(self.acao_modo_aresta)
         toolbar.addAction(self.acao_excluir)
         toolbar.addSeparator()
@@ -147,13 +158,13 @@ class JanelaPrincipal(QMainWindow):
         toolbar.addAction(self.acao_limpar_destaques)
 
     def _criar_statusbar(self) -> None:
-        self.label_modo = QLabel(" MODO: PADRÃO ")
+        self.label_modo = QLabel(" MODO: VÉRTICE ")
         self.label_modo.setStyleSheet(
             "background-color: #0066cc; color: white; font-weight: bold; padding: 2px 8px; border-radius: 3px;"
         )
         self.statusBar().addPermanentWidget(self.label_modo)
         self.statusBar().showMessage(
-            "Modo Padrão: Clique no vazio cria vértice | Arraste vértices/arestas | Tecla E: Modo Aresta | Del: Excluir"
+            "Clique para adicionar vértices | Arraste vértices/arestas | Tecla E: Modo Aresta | Del: Excluir Seleção"
         )
 
     # =========================================================================
@@ -376,7 +387,7 @@ class JanelaPrincipal(QMainWindow):
             return
         self.cena.colorir_componentes_conexos(componentes)
         self.statusBar().showMessage(
-            f"Exibindo {len(componentes)} componente(s) conexo(s).")
+            f"Exibindo {len(componentes)} componente(s) conexa(s).")
 
     # =========================================================================
     # 4. PERSISTÊNCIA (NOVO, ABRIR JSON, SALVAR JSON, EXPORTAR PNG)
