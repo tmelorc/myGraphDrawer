@@ -233,11 +233,8 @@ class ModeloGrafo:
         if min(grau for _, grau in self.grafo.degree()) >= n / 2:
             return "Sim"
 
-        # 3. Proteção contra explosão combinatorial em grafos grandes e esparsos
-        if n > 25:
-            return "Indeterminado (n > 25)"
-
-        # 4. Backtracking exato ordenando vizinhos pelo menor grau (heurística de Warnsdorff)
+        # 3. Backtracking exato ordenando vizinhos pelo menor grau (heurística de Warnsdorff)
+        # com orçamento de passos para evitar travar a interface sem bloquear grafos óbvios grandes
         nos = list(self.grafo.nodes())
         inicio = min(nos, key=lambda v: self.grafo.degree(v))
         adj = {
@@ -245,20 +242,38 @@ class ModeloGrafo:
                       key=lambda v: self.grafo.degree(v))
             for u in nos
         }
+        vizinhos_inicio = set(adj[inicio])
         visitados = {inicio}
 
+        max_passos = 200000
+        passos = 0
+        abortado = False
+
         def _buscar_ciclo(atual: int, profundidade: int) -> bool:
+            nonlocal passos, abortado
             if profundidade == n:
-                return inicio in adj[atual]
+                return atual in vizinhos_inicio
+
+            passos += 1
+            if passos > max_passos:
+                abortado = True
+                return False
+
             for vizinho in adj[atual]:
                 if vizinho not in visitados:
                     visitados.add(vizinho)
                     if _buscar_ciclo(vizinho, profundidade + 1):
                         return True
                     visitados.remove(vizinho)
+                    if abortado:
+                        return False
             return False
 
-        return "Sim" if _buscar_ciclo(inicio, 1) else "Não"
+        encontrou = _buscar_ciclo(inicio, 1)
+        if encontrou:
+            return "Sim"
+        if abortado:
+            return "Indeterminado (tempo limite)"
 
     @registrar_metrica("Euleriano")
     def metrica_euleriano(self) -> str:
@@ -328,48 +343,66 @@ class ModeloGrafo:
     # =========================================================================
     # 6. Encontrar caminho Hamiltoniano (Backtracking com heurística de Warnsdorff)
     # =========================================================================
-    def encontrar_caminho_hamiltoniano(self) -> Optional[List[int]]:
+    def encontrar_caminho_hamiltoniano(
+        self, max_passos: int = 200_000
+    ) -> Tuple[Optional[List[int]], str]:
         """
-        Retorna uma lista ordenada de vértices formando um Caminho Hamiltoniano,
-        ou None se não existir (ou se o grafo exceder o limite seguro).
+        Busca um Caminho Hamiltoniano usando backtracking com heurística de menor grau
+        e orçamento de passos (evita travar a UI sem bloquear grafos óbvios grandes).
+
+        Retorna:
+            (lista_de_vertices, "encontrado")
+            (None, "inexistente")
+            (None, "limite_excedido")
         """
         n = self.grafo.number_of_nodes()
         if n == 0:
-            return None
+            return None, "vazio"
         if n == 1:
-            return list(self.grafo.nodes())
+            return list(self.grafo.nodes()), "encontrado"
 
-        # Podas rápidas O(V + E): todo caminho hamiltoniano exige grafo conexo
-        # e no máximo 2 vértices de grau 1 (as pontas do caminho)
+        # 1. Podas rápidas O(V + E): desconexo ou mais de 2 pontas (grau 1)
         if not nx.is_connected(self.grafo):
-            return None
+            return None, "inexistente"
 
         nos = list(self.grafo.nodes())
         pontas = [v for v in nos if self.grafo.degree(v) == 1]
         if len(pontas) > 2:
-            return None
+            return None, "inexistente"
 
-        # Limite de segurança para evitar travamento da interface em grafos muito grandes
-        if n > 25:
-            return None
+        # 2. Poda de vértices de corte (articulation points):
+        # Remover um vértice de corte divide o grafo em componentes. Um caminho
+        # simples só pode atravessar esse vértice uma única vez, então remover
+        # qualquer vértice de corte pode deixar no máximo 2 componentes conexas.
+        for ap in nx.articulation_points(self.grafo):
+            subgrafo = self.grafo.subgraph(v for v in nos if v != ap)
+            if nx.number_connected_components(subgrafo) > 2:
+                return None, "inexistente"
 
-        # Ordena vizinhos pelo menor grau (heurística de Warnsdorff) para acelerar a busca
+        # 3. Ordena vizinhos pelo menor grau (heurística de Warnsdorff)
         adj = {
             u: sorted(self.grafo.neighbors(u),
                       key=lambda v: self.grafo.degree(v))
             for u in nos
         }
-
-        # Se houver vértices de grau 1, o caminho obrigatoriamente começa por um deles
         candidatos_inicio = pontas if pontas else sorted(
             nos, key=lambda v: self.grafo.degree(v))
 
         caminho: List[int] = []
         visitados: set[int] = set()
+        passos = 0
+        abortado = False
 
         def _backtrack(atual: int) -> bool:
+            nonlocal passos, abortado
             if len(caminho) == n:
                 return True
+
+            passos += 1
+            if passos > max_passos:
+                abortado = True
+                return False
+
             for vizinho in adj[atual]:
                 if vizinho not in visitados:
                     visitados.add(vizinho)
@@ -378,12 +411,16 @@ class ModeloGrafo:
                         return True
                     caminho.pop()
                     visitados.remove(vizinho)
+                    if abortado:
+                        return False
             return False
 
         for inicio in candidatos_inicio:
             caminho = [inicio]
             visitados = {inicio}
             if _backtrack(inicio):
-                return caminho
+                return caminho, "encontrado"
+            if abortado:
+                return None, "limite_excedido"
 
-        return None
+        return None, "inexistente"

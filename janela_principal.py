@@ -94,7 +94,7 @@ class JanelaPrincipal(QMainWindow):
         self.acao_modo_aresta.setCheckable(True)
         self.acao_modo_aresta.triggered.connect(self.cena.definir_modo_aresta)
 
-        self.acao_excluir = QAction("Excluir Selecionado (Del)", self)
+        self.acao_excluir = QAction("Excluir Selecionado", self)
         self.acao_excluir.setShortcut("Delete")
         self.acao_excluir.triggered.connect(self.cena.excluir_selecionados)
 
@@ -102,7 +102,7 @@ class JanelaPrincipal(QMainWindow):
         self.acao_caminho_minimo.triggered.connect(
             self.executar_caminho_minimo)
 
-        self.acao_componentes = QAction("Colorir Componentes Conexos", self)
+        self.acao_componentes = QAction("Colorir Componentes Conexas", self)
         self.acao_componentes.triggered.connect(
             self.executar_componentes_conexos)
 
@@ -159,9 +159,9 @@ class JanelaPrincipal(QMainWindow):
         # toolbar.addAction(self.acao_salvar)
         # toolbar.addSeparator()
         toolbar.addAction(self.acao_modo_aresta)
-        toolbar.addAction(self.acao_excluir)
+        # toolbar.addAction(self.acao_excluir)
         toolbar.addSeparator()
-        toolbar.addAction(self.acao_caminho_minimo)
+        # toolbar.addAction(self.acao_caminho_minimo)
         toolbar.addAction(self.acao_componentes)
         toolbar.addAction(self.acao_limpar_destaques)
 

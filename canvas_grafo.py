@@ -541,18 +541,19 @@ class CanvasGrafo(QWidget):
         self.limpar_destaques_algoritmos()
         self._limpar_selecao()
 
-        if self.modelo.grafo.number_of_nodes() == 0:
+        caminho, status = self.modelo.encontrar_caminho_hamiltoniano()
+
+        if status == "vazio":
             self.mensagem_status.emit("O grafo está vazio.", 3000)
             return
 
-        if self.modelo.grafo.number_of_nodes() > 25:
+        if status == "limite_excedido":
             self.mensagem_status.emit(
-                "Grafo muito grande (n > 25) para busca exata de Caminho Hamiltoniano.",
+                "Busca interrompida: limite de operações atingido para este grafo.",
                 3000,
             )
+            self.update()
             return
-
-        caminho = self.modelo.encontrar_caminho_hamiltoniano()
 
         if caminho is None:
             self.mensagem_status.emit(
@@ -560,20 +561,18 @@ class CanvasGrafo(QWidget):
             self.update()
             return
 
-        # Marca todos os vértices do caminho e apenas as arestas consecutivas (u_i, u_{i+1})
-        # self._vertices_destacados = set(caminho)
-        # self._arestas_destacadas = {
-        #     (min(caminho[i], caminho[i + 1]), max(caminho[i], caminho[i + 1]))
-        #     for i in range(len(caminho) - 1)
-        # }
-
-        cor = QColor("#ff0000")
-        # for vid in self._vertices_destacados:
-        #     self._cores_vertices_alg[vid] = cor
-        for i in range(len(caminho) - 1):
-            u, v = caminho[i], caminho[i + 1]
-            self._cores_arestas_alg[(min(u, v), max(u, v))] = cor
+        self._vertices_destacados = set(caminho)
+        self._arestas_destacadas = {
+            (min(caminho[i], caminho[i + 1]), max(caminho[i], caminho[i + 1]))
+            for i in range(len(caminho) - 1)
+        }
 
         sequencia_str = " → ".join(map(str, caminho))
         self.mensagem_status.emit(f"Caminho Hamiltoniano: {sequencia_str}", 0)
+        cor = QColor("#00aa55")
+        for vid in caminho:
+            self._cores_vertices_alg[vid] = cor
+        for i in range(len(caminho) - 1):
+            u, v = caminho[i], caminho[i + 1]
+            self._cores_arestas_alg[(min(u, v), max(u, v))] = cor
         self.update()
