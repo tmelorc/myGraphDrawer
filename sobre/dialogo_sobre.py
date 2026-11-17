@@ -41,7 +41,8 @@ class DialogoSobre(QDialog):
         abas = QTabWidget(self)
         abas.addTab(self._criar_navegador(conteudo.html_sobre()), "Sobre")
         abas.addTab(self._criar_navegador(conteudo.html_atalhos()), "Atalhos")
-        abas.addTab(self._criar_navegador(conteudo.html_tecnologias()), "Tecnologias")
+        abas.addTab(self._criar_navegador(
+            conteudo.html_tecnologias()), "Tecnologias")
         layout.addWidget(abas, 1)
 
         botoes = QDialogButtonBox(self)

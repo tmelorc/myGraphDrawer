@@ -218,7 +218,7 @@ class JanelaPrincipal(QMainWindow):
             "background-color: #0066cc; color: white; font-weight: bold; padding: 2px 8px; border-radius: 3px;"
         )
         # self.label_author = QLabel("by Thiago de Melo")
-        # self.label_author = QLabel(f"by {info_app.AUTOR}")
+        self.label_author = QLabel(f"by {info_app.AUTOR}")
         # self.statusBar().addPermanentWidget(self.label_author)
         self.statusBar().addPermanentWidget(self.label_modo)
         self.statusBar().showMessage(

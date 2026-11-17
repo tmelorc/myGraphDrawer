@@ -16,6 +16,7 @@ SUBTITULO = "Editor e Analisador de Grafos"
 VERSAO = "0.1.0"
 ANO = 2026
 AUTOR = "Thiago de Melo"
+EMAIL = "thiago.melo@unesp.br"
 TITULO_JANELA = f"{NOME} — {SUBTITULO}"
 
 # Arquivo SVG do ícone, na mesma pasta deste pacote.
@@ -27,7 +28,7 @@ ID_APLICATIVO = f"{NOME}.Editor"
 
 # Opcionais: deixe em branco ("") para não exibir na janela.
 LICENCA = ""
-LINK_PROJETO = ""
+LINK_PROJETO = "https://github.com/tmelorc/myGraphDrawer"
 
 # =============================================================================
 # DESCRIÇÃO
@@ -42,7 +43,7 @@ DESCRICAO = (
 
 FUNCIONALIDADES: List[str] = [
     "Edição visual: criar, mover e excluir vértices e arestas com o mouse.",
-    "Grafos predefinidos: completo, ciclo, caminho, roda, estrela, "
+    "Grafos predefinidos: aleatório, completo, ciclo, caminho, roda, estrela, "
     "bipartido completo, grade, Petersen, sólidos platônicos e Karate Club.",
     "Matrizes de adjacência, incidência e laplaciana, e criação do grafo "
     "a partir de uma matriz de adjacência digitada.",

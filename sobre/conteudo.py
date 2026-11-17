@@ -69,13 +69,14 @@ def html_sobre() -> str:
         "<h3>Funcionalidades</h3>",
         _lista(info_app.FUNCIONALIDADES),
         "<h3>Autoria</h3>",
-        f"<p>{escape(info_app.AUTOR)} &copy; {info_app.ANO}</p>",
+        f"<p>{escape(info_app.AUTOR)} &copy; {info_app.ANO} ( {escape(info_app.EMAIL)} )</p>",
     ]
     if info_app.LICENCA:
         partes.append(f"<p>Licença: {escape(info_app.LICENCA)}</p>")
     if info_app.LINK_PROJETO:
         url = escape(info_app.LINK_PROJETO, quote=True)
-        partes.append(f"<p>Projeto: <a href=\"{url}\">{escape(info_app.LINK_PROJETO)}</a></p>")
+        partes.append(
+            f"<p>Projeto: <a href=\"{url}\">{escape(info_app.LINK_PROJETO)}</a></p>")
     return "".join(partes)
 
 
