@@ -1,10 +1,12 @@
 import math
+import networkx as nx
 from typing import Dict, List, Optional, Set, Tuple
 from PyQt6.QtCore import Qt, pyqtSignal
 from PyQt6.QtGui import QColor, QFont, QKeyEvent, QMouseEvent, QPainter, QPen
 from PyQt6.QtWidgets import QWidget
 
 from modelo_grafo import ModeloGrafo
+from layouts import normalizar_layout, LAYOUTS
 
 
 class CanvasGrafo(QWidget):
@@ -226,6 +228,31 @@ class CanvasGrafo(QWidget):
         self.limpar_destaques_algoritmos()
         self.grafo_alterado.emit()
         self.update()
+
+    def aplicar_layout(self, nome: str) -> None:
+        """Reposiciona os vértices com o layout escolhido, preservando seleção e destaques."""
+        g = self.modelo.grafo
+        if g.number_of_nodes() == 0:
+            self.mensagem_status.emit(
+                "Não há vértices para reorganizar.", 3000)
+            return
+
+        try:
+            pos_nx = LAYOUTS[nome](g)
+        except (ValueError, nx.NetworkXException) as exc:
+            self.mensagem_status.emit(
+                f"Não foi possível aplicar o layout '{nome}': {exc}", 5000)
+            return
+
+        pos = normalizar_layout(
+            pos_nx,
+            largura=float(max(400, self.width())),
+            altura=float(max(300, self.height())))
+        for vid, (x, y) in pos.items():
+            self.modelo.atualizar_posicao(vid, x, y)
+
+        self.update()
+        self.mensagem_status.emit(f"Layout '{nome}' aplicado.", 3000)
 
     # =========================================================================
     # 3. ALGORITMOS VISUAIS

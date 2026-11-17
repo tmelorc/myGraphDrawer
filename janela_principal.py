@@ -1,6 +1,8 @@
+import numpy as np
 from typing import List
 from PyQt6.QtCore import Qt
-from PyQt6.QtGui import QAction, QColor, QKeySequence
+# from PyQt6.QtGui import QAction, QColor, QKeySequence
+from PyQt6.QtGui import QAction, QColor, QFontDatabase, QKeySequence
 from PyQt6.QtWidgets import (
     QApplication,
     QComboBox,
@@ -12,6 +14,7 @@ from PyQt6.QtWidgets import (
     QHeaderView,
     QLabel,
     QMainWindow,
+    QMenu,
     QMessageBox,
     QPushButton,
     QSplitter,
@@ -20,13 +23,20 @@ from PyQt6.QtWidgets import (
     QTabWidget,
     QTextEdit,
     QToolBar,
+    QToolButton,
     QVBoxLayout,
     QWidget,
 )
 
+# from modelo_grafo import ModeloGrafo
+# from gerador_grafos import GerenciadorGrafosPredefinidos
+
 from canvas_grafo import CanvasGrafo
-from modelo_grafo import ModeloGrafo
-from gerador_grafos import GerenciadorGrafosPredefinidos
+from modelo_grafo import ModeloGrafo, parsear_texto_matriz
+from gerador_grafos import GerenciadorGrafosPredefinidos, normalizar_layout
+from layouts import LAYOUTS
+
+LIMITE_VERTICES_MATRIZ = 60
 
 
 class JanelaPrincipal(QMainWindow):
@@ -139,7 +149,7 @@ class JanelaPrincipal(QMainWindow):
         menu_editar.addSeparator()
         menu_editar.addAction(self.acao_modo_aresta)
 
-        menu_algoritmos = barra_menu.addMenu("A&lgoritmos")
+        menu_algoritmos = barra_menu.addMenu("Algorit&mos")
         menu_algoritmos.addAction(self.acao_caminho_hamiltoniano)
         menu_algoritmos.addAction(self.acao_caminho_minimo)
         menu_algoritmos.addAction(self.acao_componentes)
@@ -149,6 +159,14 @@ class JanelaPrincipal(QMainWindow):
         self.gerenciador_grafos = GerenciadorGrafosPredefinidos(
             self, self.cena)
         self.gerenciador_grafos.instalar_no_menubar(barra_menu)
+
+        self.menu_layout = QMenu("&Layout", self)
+        for nome in LAYOUTS:
+            acao = QAction(nome, self)
+            acao.triggered.connect(
+                lambda checked=False, n=nome: self.cena.aplicar_layout(n))
+            self.menu_layout.addAction(acao)
+        barra_menu.addMenu(self.menu_layout)
 
     def _criar_toolbar(self) -> None:
         toolbar = QToolBar("Ferramentas Principais", self)
@@ -165,6 +183,15 @@ class JanelaPrincipal(QMainWindow):
         # toolbar.addAction(self.acao_caminho_minimo)
         toolbar.addAction(self.acao_componentes)
         toolbar.addAction(self.acao_limpar_destaques)
+
+        toolbar.addSeparator()
+        btn_layout = QToolButton(toolbar)
+        btn_layout.setText("Layout")
+        btn_layout.setToolTip(
+            "Reorganizar os vértices com um layout automático")
+        btn_layout.setMenu(self.menu_layout)
+        btn_layout.setPopupMode(QToolButton.ToolButtonPopupMode.InstantPopup)
+        toolbar.addWidget(btn_layout)
 
     def _criar_statusbar(self) -> None:
         self.label_modo = QLabel(" MODO: VÉRTICE ")
@@ -231,17 +258,24 @@ class JanelaPrincipal(QMainWindow):
 
         linha_topo_load_matrizes = QHBoxLayout()
         self.btn_load_matrizes = QPushButton("De um arquivo")
-        self.btn_type_matrizes = QPushButton("Manualmente")
+        self.btn_load_matrizes.clicked.connect(self.carregar_matriz_de_arquivo)
         linha_topo_load_matrizes.addWidget(self.btn_load_matrizes)
-        linha_topo_load_matrizes.addWidget(self.btn_type_matrizes)
-
         layout_matrizes.addLayout(linha_topo_load_matrizes)
 
         self.matriz_manual = QTextEdit()
-        self.matriz_manual.setFontFamily("Monospace")
+        self.matriz_manual.setFixedHeight(120)
+        self.matriz_manual.setAcceptRichText(False)  # evita colar formatação
+        self.matriz_manual.setFont(
+            QFontDatabase.systemFont(QFontDatabase.SystemFont.FixedFont))
         self.matriz_manual.setPlaceholderText(
-            "Digite a matriz de adjacência manualmente, separando valores por espaços e linhas por quebras de linha. A diagonal principal deve ser nula. Por exemplo:\n0 1 0\n1 0 1\n0 1 0")
+            "Digite a matriz de adjacência, separando valores por espaços e "
+            "linhas por quebras de linha. Por exemplo:\n0 1 0\n1 0 1\n0 1 0")
         layout_matrizes.addWidget(self.matriz_manual)
+
+        self.btn_criar_da_matriz = QPushButton(
+            "Criar grafo a partir da matriz")
+        self.btn_criar_da_matriz.clicked.connect(self.criar_grafo_da_matriz)
+        layout_matrizes.addWidget(self.btn_criar_da_matriz)
         layout_matrizes.addSpacing(8)
 
         linha_topo_mat = QHBoxLayout()
@@ -331,37 +365,36 @@ class JanelaPrincipal(QMainWindow):
                     item.setBackground(QColor("#e8f2ff"))
                 self.tabela_matriz.setItem(r, c, item)
 
-    def bug_atualizar_tabela_adjacencia(self) -> None:
         nos = sorted(self.modelo.grafo.nodes())
         n = len(nos)
         self._nos_matriz = nos  # Guarda o mapeamento índice da linha/coluna -> ID real do vértice
 
-        self.tabela_adjacencia.blockSignals(True)
-        try:
-            self.tabela_adjacencia.setRowCount(n)
-            self.tabela_adjacencia.setColumnCount(n)
+        # # self.tabela_adjacencia.blockSignals(True)
+        # try:
+        #     self.tabela_adjacencia.setRowCount(n)
+        #     self.tabela_adjacencia.setColumnCount(n)
 
-            labels = [str(v) for v in nos]
-            self.tabela_adjacencia.setHorizontalHeaderLabels(labels)
-            self.tabela_adjacencia.setVerticalHeaderLabels(labels)
+        #     labels = [str(v) for v in nos]
+        #     self.tabela_adjacencia.setHorizontalHeaderLabels(labels)
+        #     self.tabela_adjacencia.setVerticalHeaderLabels(labels)
 
-            for i, u in enumerate(nos):
-                for j, v in enumerate(nos):
-                    valor = "1" if self.modelo.grafo.has_edge(u, v) else "0"
-                    item = QTableWidgetItem(valor)
-                    item.setTextAlignment(Qt.AlignmentFlag.AlignCenter)
+        #     for i, u in enumerate(nos):
+        #         for j, v in enumerate(nos):
+        #             valor = "1" if self.modelo.grafo.has_edge(u, v) else "0"
+        #             item = QTableWidgetItem(valor)
+        #             item.setTextAlignment(Qt.AlignmentFlag.AlignCenter)
 
-                    if i == j:
-                        # Diagonal principal não é editável em grafo simples
-                        item.setFlags(item.flags() & ~
-                                      Qt.ItemFlag.ItemIsEditable)
-                    else:
-                        item.setFlags(
-                            item.flags() | Qt.ItemFlag.ItemIsEditable)
+        #             if i == j:
+        #                 # Diagonal principal não é editável em grafo simples
+        #                 item.setFlags(item.flags() & ~
+        #                               Qt.ItemFlag.ItemIsEditable)
+        #             else:
+        #                 item.setFlags(
+        #                     item.flags() | Qt.ItemFlag.ItemIsEditable)
 
-                    self.tabela_adjacencia.setItem(i, j, item)
-        finally:
-            self.tabela_adjacencia.blockSignals(False)
+        #             self.tabela_adjacencia.setItem(i, j, item)
+        # finally:
+        #     self.tabela_adjacencia.blockSignals(False)
 
     def _copiar_matriz_clipboard(self) -> None:
         linhas = self.tabela_matriz.rowCount()
@@ -373,10 +406,72 @@ class JanelaPrincipal(QMainWindow):
         for r in range(linhas):
             vals = [self.tabela_matriz.item(r, c).text()
                     for c in range(colunas)]
-            texto_linhas.append("\t".join(vals))
+            texto_linhas.append(" ".join(vals))
 
         QApplication.clipboard().setText("\n".join(texto_linhas))
         self.statusBar().showMessage("Matriz copiada para a área de transferência!", 3000)
+
+    def criar_grafo_da_matriz(self) -> None:
+        try:
+            matriz = parsear_texto_matriz(self.matriz_manual.toPlainText())
+        except ValueError as exc:
+            QMessageBox.warning(self, "Matriz inválida", str(exc))
+            return
+
+        n = matriz.shape[0]
+        if n > LIMITE_VERTICES_MATRIZ:
+            QMessageBox.warning(
+                self, "Matriz grande demais",
+                f"O limite é {LIMITE_VERTICES_MATRIZ} vértices (a matriz tem {n}).")
+            return
+
+        if self.modelo.grafo.number_of_nodes() > 0:
+            resp = QMessageBox.question(
+                self, "Criar grafo",
+                "Substituir o grafo atual pelo grafo da matriz? "
+                "Alterações não salvas serão perdidas.",
+                QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No)
+            if resp != QMessageBox.StandardButton.Yes:
+                return
+
+        grafo, pos_nx = self.modelo.carregar_de_matriz_adjacencia(matriz)
+        pos_pixels = normalizar_layout(
+            pos_nx,
+            largura=float(max(400, self.cena.width())),
+            altura=float(max(300, self.cena.height())))
+        self.modelo.substituir_grafo(grafo, pos_pixels)
+        self.cena.reconstruir_do_modelo()
+
+        # O grafo agora não corresponde a nenhum arquivo salvo
+        self._arquivo_atual = ""
+        self.setWindowTitle("myGraphDrawer — Editor e Analisador de Grafos")
+
+        # Avisa o que foi ajustado silenciosamente pelo modelo
+        avisos = []
+        if np.any(np.diag(matriz) != 0):
+            avisos.append("diagonal ignorada")
+        if not np.array_equal(matriz, matriz.T):
+            avisos.append(
+                "matriz assimétrica (aresta criada se houver valor em qualquer sentido)")
+        if np.any(matriz > 1):
+            avisos.append("valores maiores que 1 tratados como 1")
+        msg = (f"Grafo criado a partir da matriz ({grafo.number_of_nodes()} vértices, "
+               f"{grafo.number_of_edges()} arestas).")
+        if avisos:
+            msg += " Obs.: " + "; ".join(avisos) + "."
+        self.statusBar().showMessage(msg, 6000)
+
+    def carregar_matriz_de_arquivo(self) -> None:
+        caminho, _ = QFileDialog.getOpenFileName(
+            self, "Abrir matriz de adjacência", "",
+            "Texto (*.txt *.csv *.tsv);;Todos os arquivos (*)")
+        if not caminho:
+            return
+        try:
+            with open(caminho, "r", encoding="utf-8") as f:
+                self.matriz_manual.setPlainText(f.read())
+        except (OSError, UnicodeDecodeError) as exc:
+            QMessageBox.warning(self, "Erro ao abrir arquivo", str(exc))
 
     # =========================================================================
     # 3. ALGORITMOS VISUAIS

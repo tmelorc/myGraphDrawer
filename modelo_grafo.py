@@ -340,9 +340,19 @@ class ModeloGrafo:
         if "proximo_id" in dados:
             self._proximo_id = max(self._proximo_id, int(dados["proximo_id"]))
 
+    def substituir_grafo(self, grafo: nx.Graph,
+                         posicoes: Dict[int, Tuple[float, float]]) -> None:
+        """Substitui todo o conteúdo do modelo (vértices 0..n-1 esperados)."""
+        self.grafo = grafo
+        self.posicoes = {int(v): (float(x), float(y))
+                         for v, (x, y) in posicoes.items()}
+        self._proximo_id = max(grafo.nodes) + \
+            1 if grafo.number_of_nodes() else 0
+
     # =========================================================================
     # 6. Encontrar caminho Hamiltoniano (Backtracking com heurística de Warnsdorff)
     # =========================================================================
+
     def encontrar_caminho_hamiltoniano(
         self, max_passos: int = 200_000
     ) -> Tuple[Optional[List[int]], str]:
@@ -436,7 +446,12 @@ class ModeloGrafo:
         np.fill_diagonal(adj_simples, 0)
 
         g = nx.from_numpy_array(adj_simples)
-        pos = nx.kamada_kawai_layout(g) if n > 1 else {0: (0.0, 0.0)}
+        if n == 1:
+            pos = {0: (0.0, 0.0)}
+        elif nx.is_connected(g):
+            pos = nx.kamada_kawai_layout(g)
+        else:
+            pos = nx.spring_layout(g, seed=42)
         return g, pos
 
     def definir_aresta(self, u: int, v: int, existe: bool) -> bool:
