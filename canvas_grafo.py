@@ -290,6 +290,14 @@ class CanvasGrafo(QWidget):
                         self._cores_arestas_alg[chave] = cor
         self.update()
 
+    def destacar_pontes(self, pontes: List[Tuple[int, int]]) -> None:
+        self.limpar_destaques_algoritmos()
+        # magenta: não colide com seleção (vermelho) nem hover (laranja)
+        cor = QColor("#d6006f")
+        for u, v in pontes:
+            self._cores_arestas_alg[(min(u, v), max(u, v))] = cor
+        self.update()
+
     # =========================================================================
     # 4. DETECÇÃO GEOMÉTRICA
     # =========================================================================

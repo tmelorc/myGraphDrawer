@@ -135,6 +135,13 @@ class ModeloGrafo:
         mat = mat_esparsa.toarray().astype(int)
         return nos, mat
 
+    def salvar_matriz_adjacencia_csv(self, caminho_arquivo: str, separador: str = " ") -> None:
+        """Grava a matriz de adjacência em texto, uma linha por vértice, valores separados por `separador`."""
+        _, matriz = self.obter_matriz_adjacencia()
+        with open(caminho_arquivo, "w", encoding="utf-8", newline="\n") as f:
+            for linha in matriz:
+                f.write(separador.join(str(int(v)) for v in linha) + "\n")
+
     # =========================================================================
     # 3. ALGORITMOS VISUAIS AUXILIARES
     # =========================================================================
@@ -151,6 +158,10 @@ class ModeloGrafo:
     def obter_componentes_conexos(self) -> List[List[int]]:
         """Retorna lista de listas com os IDs de cada componente conexo."""
         return [sorted(list(comp)) for comp in nx.connected_components(self.grafo)]
+
+    def obter_pontes(self) -> List[Tuple[int, int]]:
+        """Arestas cuja remoção aumenta o número de componentes conexos, como (u, v) com u < v."""
+        return sorted((min(u, v), max(u, v)) for u, v in nx.bridges(self.grafo))
 
     # =========================================================================
     # 4. MÉTRICAS EXTENSÍVEIS (PAINEL LATERAL)
@@ -206,6 +217,10 @@ class ModeloGrafo:
         if self.grafo.number_of_nodes() == 0:
             return 0
         return nx.number_connected_components(self.grafo)
+
+    @registrar_metrica("Pontes")
+    def metrica_pontes(self) -> int:
+        return len(self.obter_pontes())
 
     @registrar_metrica("Planar")
     def metrica_planar(self) -> str:

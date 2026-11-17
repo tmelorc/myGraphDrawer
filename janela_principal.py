@@ -35,6 +35,7 @@ from canvas_grafo import CanvasGrafo
 from modelo_grafo import ModeloGrafo, parsear_texto_matriz
 from gerador_grafos import GerenciadorGrafosPredefinidos, normalizar_layout
 from layouts import LAYOUTS
+from sobre import DialogoSobre, info_app
 
 LIMITE_VERTICES_MATRIZ = 60
 
@@ -46,7 +47,8 @@ class JanelaPrincipal(QMainWindow):
 
     def __init__(self) -> None:
         super().__init__()
-        self.setWindowTitle("myGraphDrawer — Editor e Analisador de Grafos")
+        # self.setWindowTitle("myGraphDrawer — Editor e Analisador de Grafos")
+        self.setWindowTitle(info_app.TITULO_JANELA)
         self.resize(1200, 900)
 
         self._arquivo_atual: str = ""
@@ -93,6 +95,9 @@ class JanelaPrincipal(QMainWindow):
         self.acao_salvar.setShortcut(QKeySequence.StandardKey.Save)
         self.acao_salvar.triggered.connect(self.salvar_json)
 
+        self.acao_salvar_csv = QAction("Exportar Matriz CSV...", self)
+        self.acao_salvar_csv.triggered.connect(self.salvar_matriz_csv)
+
         self.acao_exportar_png = QAction("Exportar PNG...", self)
         self.acao_exportar_png.triggered.connect(self.exportar_png)
 
@@ -131,6 +136,12 @@ class JanelaPrincipal(QMainWindow):
             self.cena.destacar_caminho_hamiltoniano
         )
 
+        self.acao_pontes = QAction("Destacar Pontes", self)
+        self.acao_pontes.triggered.connect(self.executar_pontes)
+
+        self.acao_sobre = QAction("&Sobre", self)
+        self.acao_sobre.triggered.connect(self.mostrar_sobre)
+
     def _criar_menus(self) -> None:
         barra_menu = self.menuBar()
 
@@ -138,7 +149,9 @@ class JanelaPrincipal(QMainWindow):
         menu_arquivo.addAction(self.acao_novo)
         menu_arquivo.addAction(self.acao_abrir)
         menu_arquivo.addAction(self.acao_salvar)
+        menu_arquivo.addAction(self.acao_salvar)
         menu_arquivo.addSeparator()
+        menu_arquivo.addAction(self.acao_salvar_csv)
         menu_arquivo.addAction(self.acao_exportar_png)
         menu_arquivo.addSeparator()
         menu_arquivo.addAction(self.acao_sair)
@@ -153,6 +166,7 @@ class JanelaPrincipal(QMainWindow):
         menu_algoritmos.addAction(self.acao_caminho_hamiltoniano)
         menu_algoritmos.addAction(self.acao_caminho_minimo)
         menu_algoritmos.addAction(self.acao_componentes)
+        menu_algoritmos.addAction(self.acao_pontes)
         menu_algoritmos.addSeparator()
         menu_algoritmos.addAction(self.acao_limpar_destaques)
 
@@ -168,6 +182,9 @@ class JanelaPrincipal(QMainWindow):
             self.menu_layout.addAction(acao)
         barra_menu.addMenu(self.menu_layout)
 
+        menu_ajuda = barra_menu.addMenu("A&juda")
+        menu_ajuda.addAction(self.acao_sobre)
+
     def _criar_toolbar(self) -> None:
         toolbar = QToolBar("Ferramentas Principais", self)
         toolbar.setMovable(False)
@@ -182,6 +199,7 @@ class JanelaPrincipal(QMainWindow):
         toolbar.addSeparator()
         # toolbar.addAction(self.acao_caminho_minimo)
         toolbar.addAction(self.acao_componentes)
+        toolbar.addAction(self.acao_pontes)
         toolbar.addAction(self.acao_limpar_destaques)
 
         toolbar.addSeparator()
@@ -198,7 +216,8 @@ class JanelaPrincipal(QMainWindow):
         self.label_modo.setStyleSheet(
             "background-color: #0066cc; color: white; font-weight: bold; padding: 2px 8px; border-radius: 3px;"
         )
-        self.label_author = QLabel("by Thiago de Melo")
+        # self.label_author = QLabel("by Thiago de Melo")
+        self.label_author = QLabel(f"by {info_app.AUTOR}")
         # self.statusBar().addPermanentWidget(self.label_author)
         self.statusBar().addPermanentWidget(self.label_modo)
         self.statusBar().showMessage(
@@ -444,7 +463,8 @@ class JanelaPrincipal(QMainWindow):
 
         # O grafo agora não corresponde a nenhum arquivo salvo
         self._arquivo_atual = ""
-        self.setWindowTitle("myGraphDrawer — Editor e Analisador de Grafos")
+        # self.setWindowTitle("myGraphDrawer — Editor e Analisador de Grafos")
+        self._atualizar_titulo()
 
         # Avisa o que foi ajustado silenciosamente pelo modelo
         avisos = []
@@ -542,6 +562,18 @@ class JanelaPrincipal(QMainWindow):
         self.statusBar().showMessage(
             f"Exibindo {len(componentes)} componente(s) conexa(s).")
 
+    def executar_pontes(self) -> None:
+        pontes = self.modelo.obter_pontes()
+        self.cena.destacar_pontes(pontes)
+        if not pontes:
+            self.statusBar().showMessage("O grafo não possui pontes.", 4000)
+            return
+        lista = ", ".join(f"{u}–{v}" for u, v in pontes[:8])
+        if len(pontes) > 8:
+            lista += ", ..."
+        self.statusBar().showMessage(
+            f"{len(pontes)} ponte(s) encontrada(s): {lista}", 6000)
+
     # =========================================================================
     # 4. PERSISTÊNCIA (NOVO, ABRIR JSON, SALVAR JSON, EXPORTAR PNG)
     # =========================================================================
@@ -559,10 +591,16 @@ class JanelaPrincipal(QMainWindow):
 
         self.cena.limpar_tudo()
         self._arquivo_atual = ""
-        self.setWindowTitle("myGraphDrawer — Editor e Analisador de Grafos")
+        # self.setWindowTitle("myGraphDrawer — Editor e Analisador de Grafos")
+        self._atualizar_titulo()
         self.statusBar().showMessage("Novo grafo criado.", 3000)
 
     def salvar_json(self) -> None:
+        if self.modelo.grafo.number_of_nodes() == 0:
+            QMessageBox.information(
+                self, "Salvar Grafo em JSON", "O grafo está vazio: não há dados para salvar.")
+            return
+
         caminho, _ = QFileDialog.getSaveFileName(
             self,
             "Salvar Grafo em JSON",
@@ -578,7 +616,8 @@ class JanelaPrincipal(QMainWindow):
         try:
             self.modelo.salvar_json(caminho)
             self._arquivo_atual = caminho
-            self.setWindowTitle(f"myGraphDrawer — {caminho}")
+            # self.setWindowTitle(f"myGraphDrawer — {caminho}")
+            self._atualizar_titulo()
             self.statusBar().showMessage(
                 f"Grafo salvo com sucesso em: {caminho}", 4000)
         except Exception as exc:
@@ -599,14 +638,46 @@ class JanelaPrincipal(QMainWindow):
             self.modelo.carregar_json(caminho)
             self.cena.reconstruir_do_modelo()
             self._arquivo_atual = caminho
-            self.setWindowTitle(f"myGraphDrawer — {caminho}")
+            # self.setWindowTitle(f"myGraphDrawer — {caminho}")
+            self._atualizar_titulo()
             self.statusBar().showMessage(
                 f"Grafo carregado de: {caminho}", 4000)
         except Exception as exc:
             QMessageBox.critical(self, "Erro ao Abrir",
                                  f"Arquivo JSON inválido ou corrompido:\n{exc}")
 
+    def salvar_matriz_csv(self) -> None:
+        if self.modelo.grafo.number_of_nodes() == 0:
+            QMessageBox.information(
+                self, "Salvar Matriz", "O grafo está vazio: não há matriz para salvar.")
+            return
+
+        caminho, _ = QFileDialog.getSaveFileName(
+            self,
+            "Salvar Matriz de Adjacência",
+            "matriz_adjacencia.csv",
+            "Arquivos CSV (*.csv);;Arquivos de texto (*.txt)",
+        )
+        if not caminho:
+            return
+
+        if "." not in caminho.replace("\\", "/").split("/")[-1]:
+            caminho += ".csv"
+
+        try:
+            self.modelo.salvar_matriz_adjacencia_csv(caminho)
+            self.statusBar().showMessage(
+                f"Matriz de adjacência salva em: {caminho}", 4000)
+        except OSError as exc:
+            QMessageBox.critical(self, "Erro ao Salvar",
+                                 f"Não foi possível salvar o arquivo:\n{exc}")
+
     def exportar_png(self) -> None:
+        if self.modelo.grafo.number_of_nodes() == 0:
+            QMessageBox.information(
+                self, "Exportar PNG", "O grafo está vazio: não há imagem para exportar.")
+            return
+
         caminho, _ = QFileDialog.getSaveFileName(
             self,
             "Exportar Imagem PNG",
@@ -649,3 +720,12 @@ class JanelaPrincipal(QMainWindow):
 
     def _exibir_mensagem_status(self, texto: str) -> None:
         self.statusBar().showMessage(texto)
+
+    def mostrar_sobre(self) -> None:
+        DialogoSobre(self).exec()
+
+    def _atualizar_titulo(self) -> None:
+        if self._arquivo_atual:
+            self.setWindowTitle(f"{info_app.NOME} — {self._arquivo_atual}")
+        else:
+            self.setWindowTitle(info_app.TITULO_JANELA)
