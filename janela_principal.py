@@ -18,6 +18,7 @@ from PyQt6.QtWidgets import (
     QTableWidget,
     QTableWidgetItem,
     QTabWidget,
+    QTextEdit,
     QToolBar,
     QVBoxLayout,
     QWidget,
@@ -170,6 +171,8 @@ class JanelaPrincipal(QMainWindow):
         self.label_modo.setStyleSheet(
             "background-color: #0066cc; color: white; font-weight: bold; padding: 2px 8px; border-radius: 3px;"
         )
+        self.label_author = QLabel("by Thiago de Melo")
+        # self.statusBar().addPermanentWidget(self.label_author)
         self.statusBar().addPermanentWidget(self.label_modo)
         self.statusBar().showMessage(
             "Clique para adicionar vértices | Arraste vértices/arestas | Tecla E: Modo Aresta | Del: Excluir Seleção"
@@ -225,6 +228,21 @@ class JanelaPrincipal(QMainWindow):
         # --- ABA 2: MATRIZES ---
         widget_matrizes = QWidget()
         layout_matrizes = QVBoxLayout(widget_matrizes)
+
+        linha_topo_load_matrizes = QHBoxLayout()
+        self.btn_load_matrizes = QPushButton("De um arquivo")
+        self.btn_type_matrizes = QPushButton("Manualmente")
+        linha_topo_load_matrizes.addWidget(self.btn_load_matrizes)
+        linha_topo_load_matrizes.addWidget(self.btn_type_matrizes)
+
+        layout_matrizes.addLayout(linha_topo_load_matrizes)
+
+        self.matriz_manual = QTextEdit()
+        self.matriz_manual.setFontFamily("Monospace")
+        self.matriz_manual.setPlaceholderText(
+            "Digite a matriz de adjacência manualmente, separando valores por espaços e linhas por quebras de linha. A diagonal principal deve ser nula. Por exemplo:\n0 1 0\n1 0 1\n0 1 0")
+        layout_matrizes.addWidget(self.matriz_manual)
+        layout_matrizes.addSpacing(8)
 
         linha_topo_mat = QHBoxLayout()
         self.combo_matriz = QComboBox()
@@ -312,6 +330,38 @@ class JanelaPrincipal(QMainWindow):
                 if val != 0:
                     item.setBackground(QColor("#e8f2ff"))
                 self.tabela_matriz.setItem(r, c, item)
+
+    def bug_atualizar_tabela_adjacencia(self) -> None:
+        nos = sorted(self.modelo.grafo.nodes())
+        n = len(nos)
+        self._nos_matriz = nos  # Guarda o mapeamento índice da linha/coluna -> ID real do vértice
+
+        self.tabela_adjacencia.blockSignals(True)
+        try:
+            self.tabela_adjacencia.setRowCount(n)
+            self.tabela_adjacencia.setColumnCount(n)
+
+            labels = [str(v) for v in nos]
+            self.tabela_adjacencia.setHorizontalHeaderLabels(labels)
+            self.tabela_adjacencia.setVerticalHeaderLabels(labels)
+
+            for i, u in enumerate(nos):
+                for j, v in enumerate(nos):
+                    valor = "1" if self.modelo.grafo.has_edge(u, v) else "0"
+                    item = QTableWidgetItem(valor)
+                    item.setTextAlignment(Qt.AlignmentFlag.AlignCenter)
+
+                    if i == j:
+                        # Diagonal principal não é editável em grafo simples
+                        item.setFlags(item.flags() & ~
+                                      Qt.ItemFlag.ItemIsEditable)
+                    else:
+                        item.setFlags(
+                            item.flags() | Qt.ItemFlag.ItemIsEditable)
+
+                    self.tabela_adjacencia.setItem(i, j, item)
+        finally:
+            self.tabela_adjacencia.blockSignals(False)
 
     def _copiar_matriz_clipboard(self) -> None:
         linhas = self.tabela_matriz.rowCount()

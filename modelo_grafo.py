@@ -2,7 +2,7 @@ import json
 from typing import Any, Callable, Dict, List, Optional, Tuple
 import networkx as nx
 import numpy as np
-
+import re
 
 # Registro global de métricas para facilitar extensões futuras
 _METRICAS_REGISTRADAS: List[Tuple[str, Callable[["ModeloGrafo"], Any]]] = []
@@ -424,3 +424,78 @@ class ModeloGrafo:
                 return None, "limite_excedido"
 
         return None, "inexistente"
+
+    def carregar_de_matriz_adjacencia(self, matriz: np.ndarray) -> Tuple[nx.Graph, dict]:
+        """
+        Constrói um grafo simples não-direcionado a partir de uma matriz quadrada.
+        Se a matriz não for simétrica, considera a união (A | A.T) > 0.
+        """
+        n = matriz.shape[0]
+        # Ignora diagonal principal (laços) e simetriza para grafo simples não-direcionado
+        adj_simples = ((matriz + matriz.T) > 0).astype(int)
+        np.fill_diagonal(adj_simples, 0)
+
+        g = nx.from_numpy_array(adj_simples)
+        pos = nx.kamada_kawai_layout(g) if n > 1 else {0: (0.0, 0.0)}
+        return g, pos
+
+    def definir_aresta(self, u: int, v: int, existe: bool) -> bool:
+        """
+        Define a existência da aresta (u, v) em um grafo simples não-direcionado.
+        Retorna True se houve alteração real no grafo.
+        """
+        if u == v or u not in self.grafo or v not in self.grafo:
+            return False
+
+        ja_existe = self.grafo.has_edge(u, v)
+        if existe and not ja_existe:
+            self.adicionar_aresta(u, v)
+            return True
+        if not existe and ja_existe:
+            self.remover_aresta(u, v)
+            return True
+        return False
+
+
+def parsear_texto_matriz(texto: str) -> np.ndarray:
+    """
+    Converte texto livre (CSV, espaços, colchetes Python ou linhas binárias compactas)
+    em uma matriz quadrada NumPy de inteiros.
+    Lança ValueError com mensagem clara se o formato for inválido.
+    """
+    linhas_brutas = [linha.strip()
+                     for linha in texto.strip().splitlines() if linha.strip()]
+    if not linhas_brutas:
+        raise ValueError("A entrada está vazia.")
+
+    matriz = []
+    for idx, linha in enumerate(linhas_brutas):
+        # Remove colchetes de listas Python/NumPy e vírgulas nas pontas
+        limpa = linha.strip("[](),; \t")
+        if not limpa:
+            continue
+
+        # Caso compacto sem separadores (ex: "0110")
+        if re.fullmatch(r"[01]+", limpa) and len(limpa) > 1:
+            valores = [int(ch) for ch in limpa]
+        else:
+            partes = [p for p in re.split(r"[\s,;]+", limpa) if p]
+            try:
+                valores = [int(float(p)) for p in partes]
+            except ValueError as exc:
+                raise ValueError(
+                    f"Valor não numérico na linha {idx + 1}: '{linha}'") from exc
+
+        matriz.append(valores)
+
+    n = len(matriz)
+    if any(len(linha) != n for linha in matriz):
+        raise ValueError(
+            f"A matriz precisa ser quadrada (encontradas {n} linhas com tamanhos diferentes).")
+
+    arr = np.array(matriz, dtype=int)
+    if np.any(arr < 0):
+        raise ValueError(
+            "A matriz de adjacência não pode conter valores negativos.")
+
+    return arr
