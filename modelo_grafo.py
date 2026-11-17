@@ -521,7 +521,7 @@ def parsear_texto_matriz(texto: str) -> np.ndarray:
     n = len(matriz)
     if any(len(linha) != n for linha in matriz):
         raise ValueError(
-            f"A matriz precisa ser quadrada (encontradas {n} linhas com tamanhos diferentes).")
+            f"A matriz precisa ser quadrada.")
 
     arr = np.array(matriz, dtype=int)
     if np.any(arr < 0):

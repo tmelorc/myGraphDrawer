@@ -4,6 +4,7 @@ from PyQt6.QtCore import Qt
 # from PyQt6.QtGui import QAction, QColor, QKeySequence
 from PyQt6.QtGui import QAction, QColor, QFontDatabase, QKeySequence
 from PyQt6.QtWidgets import (
+    QAbstractItemView,
     QApplication,
     QComboBox,
     QDialog,
@@ -62,7 +63,7 @@ class JanelaPrincipal(QMainWindow):
         painel_direito = self._criar_painel_analise()
         splitter.addWidget(painel_direito)
 
-        splitter.setSizes([840, 360])
+        splitter.setSizes([840, 400])
         splitter.setCollapsible(0, False)
         self.setCentralWidget(splitter)
 
@@ -202,14 +203,14 @@ class JanelaPrincipal(QMainWindow):
         toolbar.addAction(self.acao_pontes)
         toolbar.addAction(self.acao_limpar_destaques)
 
-        toolbar.addSeparator()
-        btn_layout = QToolButton(toolbar)
-        btn_layout.setText("Layout")
-        btn_layout.setToolTip(
-            "Reorganizar os vértices com um layout automático")
-        btn_layout.setMenu(self.menu_layout)
-        btn_layout.setPopupMode(QToolButton.ToolButtonPopupMode.InstantPopup)
-        toolbar.addWidget(btn_layout)
+        # toolbar.addSeparator()
+        # btn_layout = QToolButton(toolbar)
+        # btn_layout.setText("Layout")
+        # btn_layout.setToolTip(
+        #     "Reorganizar os vértices com um layout automático")
+        # btn_layout.setMenu(self.menu_layout)
+        # btn_layout.setPopupMode(QToolButton.ToolButtonPopupMode.InstantPopup)
+        # toolbar.addWidget(btn_layout)
 
     def _criar_statusbar(self) -> None:
         self.label_modo = QLabel(" MODO: VÉRTICE ")
@@ -217,7 +218,7 @@ class JanelaPrincipal(QMainWindow):
             "background-color: #0066cc; color: white; font-weight: bold; padding: 2px 8px; border-radius: 3px;"
         )
         # self.label_author = QLabel("by Thiago de Melo")
-        self.label_author = QLabel(f"by {info_app.AUTOR}")
+        # self.label_author = QLabel(f"by {info_app.AUTOR}")
         # self.statusBar().addPermanentWidget(self.label_author)
         self.statusBar().addPermanentWidget(self.label_modo)
         self.statusBar().showMessage(
@@ -316,6 +317,9 @@ class JanelaPrincipal(QMainWindow):
 
         self.tabela_matriz = QTableWidget(0, 0)
         self.tabela_matriz.horizontalHeader().setDefaultSectionSize(38)
+        self.tabela_matriz.setSelectionMode(
+            QAbstractItemView.SelectionMode.NoSelection)
+        self.tabela_matriz.setFocusPolicy(Qt.FocusPolicy.NoFocus)
         self.tabela_matriz.setEditTriggers(
             QTableWidget.EditTrigger.NoEditTriggers)
         layout_matrizes.addWidget(self.tabela_matriz)
@@ -479,7 +483,7 @@ class JanelaPrincipal(QMainWindow):
                f"{grafo.number_of_edges()} arestas).")
         if avisos:
             msg += " Obs.: " + "; ".join(avisos) + "."
-        self.statusBar().showMessage(msg, 6000)
+        self.statusBar().showMessage(msg, 10000)
 
     def carregar_matriz_de_arquivo(self) -> None:
         caminho, _ = QFileDialog.getOpenFileName(

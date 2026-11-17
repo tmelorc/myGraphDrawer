@@ -39,6 +39,10 @@ class CanvasGrafo(QWidget):
         self._arestas_selecionadas: Set[Tuple[int, int]] = set()
         self._origem_aresta: Optional[int] = None
 
+        # Estado de arrasto em grupo (substitui ou complementa o _vertice_arrastado único)
+        self._pos_mouse_inicio_arrasto: Optional[QPointF] = None
+        self._posicoes_iniciais_arrasto: dict[int, QPointF] = {}
+
         # Controle de arraste
         self._arrastando_vertice: Optional[int] = None
         self._arrastando_aresta: Optional[Tuple[int, int]] = None

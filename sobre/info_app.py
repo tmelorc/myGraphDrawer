@@ -73,6 +73,7 @@ ATALHOS_TECLADO: List[Tuple[str, str]] = [
             "seleção e destaques (nessa ordem)."),
     ("Delete", "Exclui a seleção."),
     ("Ctrl+A", "Seleciona tudo."),
+    ("Ctrl+R", "Gera um grafo aleatório."),
     ("Ctrl+N / Ctrl+O / Ctrl+S", "Novo grafo / Abrir JSON / Salvar JSON."),
 ]
 

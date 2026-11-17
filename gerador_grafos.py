@@ -1,3 +1,4 @@
+import numpy as np
 from dataclasses import dataclass
 from typing import Callable, Dict, List, Optional, Tuple
 import networkx as nx
@@ -32,7 +33,21 @@ def registrar_grafo(nome: str, separador_antes: bool = False):
 # CATÁLOGO DE GRAFOS PREDEFINIDOS (NETWORKX + LAYOUTS NATIVOS)
 # =============================================================================
 
-@registrar_grafo("Completo (K_n)...")
+@registrar_grafo("Aleatório")
+def _gerar_aleatorio(parent: QWidget):
+    # n, ok = QInputDialog.getInt(
+    #     parent, "Grafo Aleatório", "Número de vértices (n):", 5, 1, 30, 1)
+    # if not ok:
+    #     return None
+    n = np.random.randint(2, 21)
+    g = nx.random_geometric_graph(n, radius=0.5)
+    pos = nx.get_node_attributes(g, "pos")
+    # g = nx.random_clustered_graph(n)
+    # pos = nx.circular_layout(g)
+    return g, pos
+
+
+@registrar_grafo("Completo (K_n)...", separador_antes=True)
 def _gerar_completo(parent: QWidget):
     n, ok = QInputDialog.getInt(
         parent, "Grafo Completo", "Número de vértices (n):", 5, 1, 30, 1)
@@ -163,7 +178,7 @@ def _gerar_grade(parent: QWidget):
     return g, pos
 
 
-@registrar_grafo("Grafo de Petersen", separador_antes=True)
+@registrar_grafo("Grafo de Petersen", separador_antes=False)
 def _gerar_petersen(parent: QWidget):
     g = nx.petersen_graph()
     # Layout clássico: pentágono externo (0..4) e pentagrama interno (5..9)
@@ -171,7 +186,14 @@ def _gerar_petersen(parent: QWidget):
     return g, pos
 
 
-@registrar_grafo("Tetraedro")
+@registrar_grafo("Karate Club (Zachary)")
+def _gerar_karate(parent: QWidget):
+    g = nx.karate_club_graph()
+    pos = nx.spring_layout(g, seed=42)
+    return g, pos
+
+
+@registrar_grafo("Tetraedro", separador_antes=True)
 def _gerar_tetraedro(parent: QWidget):
     g = nx.tetrahedral_graph()
     # Projeção planar clássica: 1 vértice central (0) e triângulo externo (1, 2, 3)
@@ -209,13 +231,6 @@ def _gerar_icosaedro(parent: QWidget):
     return g, pos
 
 
-@registrar_grafo("Karate Club (Zachary)")
-def _gerar_karate(parent: QWidget):
-    g = nx.karate_club_graph()
-    pos = nx.spring_layout(g, seed=42)
-    return g, pos
-
-
 # =============================================================================
 # GERENCIADOR MODULAR PARA PLUGAR NA JANELA PRINCIPAL
 # =============================================================================
@@ -240,6 +255,8 @@ class GerenciadorGrafosPredefinidos:
                 menu_grafos.addSeparator()
 
             acao = QAction(item.nome, self.janela)
+            if item.nome == "Aleatório":
+                acao.setShortcut("Ctrl+R")
             acao.triggered.connect(
                 lambda checked=False, definicao=item: self._aplicar_grafo(definicao))
             menu_grafos.addAction(acao)
