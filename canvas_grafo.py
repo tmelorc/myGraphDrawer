@@ -1,3 +1,4 @@
+# todo: ao arrastar um vértice, não quero limpar o destaque de algoritmos, mas sim manter o destaque de vizinhança (ou seja, não chamar self.limpar_destaques_algoritmos() no mousePressEvent)
 import math
 import networkx as nx
 from typing import Dict, List, Optional, Set, Tuple
@@ -39,9 +40,10 @@ class CanvasGrafo(QWidget):
         self._arestas_selecionadas: Set[Tuple[int, int]] = set()
         self._origem_aresta: Optional[int] = None
 
+        # TODO
         # Estado de arrasto em grupo (substitui ou complementa o _vertice_arrastado único)
-        self._pos_mouse_inicio_arrasto: Optional[QPointF] = None
-        self._posicoes_iniciais_arrasto: dict[int, QPointF] = {}
+        # self._pos_mouse_inicio_arrasto: Optional[QPointF] = None
+        # self._posicoes_iniciais_arrasto: dict[int, QPointF] = {}
 
         # Controle de arraste
         self._arrastando_vertice: Optional[int] = None
@@ -53,7 +55,7 @@ class CanvasGrafo(QWidget):
         self._cores_vertices_alg: Dict[int, QColor] = {}
         self._cores_arestas_alg: Dict[Tuple[int, int], QColor] = {}
 
-        # Recursos gráficos pré-alocados
+        # Recursos gráficos pré-alocados: cores, linhas, fontes
         self._cor_fundo = QColor("#ffffff")
         self._cor_vertice = QColor("#0066cc")
         self._cor_vertice_hover = QColor("#0099ff")
@@ -85,9 +87,9 @@ class CanvasGrafo(QWidget):
         self._ultimo_x: float = 0.0
         self._ultimo_y: float = 0.0
 
-    # =========================================================================
+    # =================================================================
     # 1. CONTROLE DE MODOS E SELEÇÃO
-    # =========================================================================
+    # =================================================================
 
     def definir_modo_aresta(self, ativo: bool) -> None:
         if self.modo_aresta == ativo:
@@ -105,7 +107,7 @@ class CanvasGrafo(QWidget):
         else:
             self.unsetCursor()
             self.mensagem_status.emit(
-                "Modo Padrão: Clique no vazio cria vértice | Arraste vértices/arestas | Del remove.", 0
+                "Clique para criar vértices | Arraste para mover vértices/arestas | Tecla Del para remover. Tecla E para modo Aresta.", 0
             )
         self.update()
 
@@ -113,8 +115,6 @@ class CanvasGrafo(QWidget):
         self.definir_modo_aresta(not self.modo_aresta)
 
     def _limpar_selecao(self) -> None:
-        # self._vertice_selecionado = None
-        # self._aresta_selecionada = None
         self._vertices_selecionados.clear()
         self._arestas_selecionadas.clear()
 
@@ -127,20 +127,16 @@ class CanvasGrafo(QWidget):
         }
         if self._vertices_selecionados:
             self.mensagem_status.emit(
-                f"Selecionados: {len(self._vertices_selecionados)} vértice(s) e "
-                f"{len(self._arestas_selecionadas)} aresta(s). Pressione Del para excluir ou ESC para cancelar.", 0
+                f"Selecionados: {len(self._vertices_selecionados)} vértice(s) e {len(self._arestas_selecionadas)} aresta(s). Pressione Del para excluir ou ESC para cancelar a seleção.", 0
             )
         self.update()
 
-    # usado antes do Ctrl+A
-    # def obter_vertices_selecionados(self) -> List[int]:
-    #     return [self._vertice_selecionado] if self._vertice_selecionado is not None else []
-
     def obter_vertices_selecionados(self) -> List[int]:
         return sorted(self._vertices_selecionados)
-    # =========================================================================
+
+    # =================================================================
     # 2. OPERAÇÕES NO GRAFO
-    # =========================================================================
+    # =================================================================
 
     def criar_vertice(self, x: float, y: float) -> int:
         vid = self.modelo.adicionar_vertice(x, y)
@@ -180,38 +176,10 @@ class CanvasGrafo(QWidget):
         if self.modelo.grafo.number_of_nodes() == 0:
             self.modelo.limpar()
             self.mensagem_status.emit(
-                "Grafo deletado.", 2000)
-        # else:
-        #     self.mensagem_status.emit(
-        #         f"Removido(s): {qtd_v} vértice(s) e {qtd_a} aresta(s).",
-        #         2000,
-        #     )
+                "Grafo deletado.", 3000)
 
         self.grafo_alterado.emit()
         self.update()
-
-    # usada antes do Ctrl+A
-    # def excluir_selecionados(self) -> None:
-    #     alterou = False
-    #     if self._vertice_selecionado is not None:
-    #         vid = self._vertice_selecionado
-    #         if self._origem_aresta == vid:
-    #             self._origem_aresta = None
-    #         self.modelo.remover_vertice(vid)
-    #         self._vertice_selecionado = None
-    #         self._vertice_hover = None
-    #         alterou = True
-    #     elif self._aresta_selecionada is not None:
-    #         u, v = self._aresta_selecionada
-    #         self.modelo.remover_aresta(u, v)
-    #         self._aresta_selecionada = None
-    #         self._aresta_hover = None
-    #         alterou = True
-
-    #     if alterou:
-    #         self.limpar_destaques_algoritmos()
-    #         self.grafo_alterado.emit()
-    #         self.update()
 
     def limpar_tudo(self) -> None:
         self._origem_aresta = None
@@ -221,10 +189,10 @@ class CanvasGrafo(QWidget):
         self.limpar_destaques_algoritmos()
         self.modelo.limpar()
         self.grafo_alterado.emit()
-        # self.mensagem_status.emit("Grafo deletado", 2000)
         self.update()
 
     def reconstruir_do_modelo(self) -> None:
+        """Reconstrói a visualização do grafo a partir do modelo, preservando seleção e destaques."""
         self._origem_aresta = None
         self._vertice_hover = None
         self._aresta_hover = None
@@ -258,9 +226,9 @@ class CanvasGrafo(QWidget):
         self.update()
         self.mensagem_status.emit(f"Layout '{nome}' aplicado.", 3000)
 
-    # =========================================================================
+    # =================================================================
     # 3. ALGORITMOS VISUAIS
-    # =========================================================================
+    # =================================================================
 
     def limpar_destaques_algoritmos(self) -> None:
         self._cores_vertices_alg.clear()
@@ -277,7 +245,7 @@ class CanvasGrafo(QWidget):
             self._cores_arestas_alg[(min(u, v), max(u, v))] = cor
         self.update()
 
-    def colorir_componentes_conexos(self, componentes: List[List[int]]) -> None:
+    def destacar_componentes_conexas(self, componentes: List[List[int]]) -> None:
         self.limpar_destaques_algoritmos()
         total = len(componentes)
         if total == 0:
@@ -289,22 +257,32 @@ class CanvasGrafo(QWidget):
                 self._cores_vertices_alg[vid] = cor
             for i in range(len(comp)):
                 for j in range(i + 1, len(comp)):
-                    chave = (min(comp[i], comp[j]), max(comp[i], comp[j]))
+                    aresta = (min(comp[i], comp[j]), max(comp[i], comp[j]))
                     if self.modelo.grafo.has_edge(comp[i], comp[j]):
-                        self._cores_arestas_alg[chave] = cor
+                        self._cores_arestas_alg[aresta] = cor
         self.update()
 
     def destacar_pontes(self, pontes: List[Tuple[int, int]]) -> None:
         self.limpar_destaques_algoritmos()
-        # magenta: não colide com seleção (vermelho) nem hover (laranja)
         cor = QColor("#d6006f")
         for u, v in pontes:
             self._cores_arestas_alg[(min(u, v), max(u, v))] = cor
         self.update()
 
-    # =========================================================================
+    def destacar_arvore_geradora(self, arvore: List[Tuple[int, int]]) -> None:
+        self.limpar_destaques_algoritmos()
+        for u, v in self.modelo.grafo.edges():
+            if (min(u, v), max(u, v)) not in arvore:
+                self._cores_arestas_alg[(min(u, v), max(u, v))] = QColor(
+                    "#cccccc")  # Cor cinza para arestas não na árvore
+            else:
+                self._cores_arestas_alg[(
+                    min(u, v), max(u, v))] = QColor("#00aa55")
+        self.update()
+
+    # =================================================================
     # 4. DETECÇÃO GEOMÉTRICA
-    # =========================================================================
+    # =================================================================
 
     def _obter_vertice_em(self, x: float, y: float) -> Optional[int]:
         for vid in reversed(self.modelo.vertices_ordenados()):
@@ -450,7 +428,7 @@ class CanvasGrafo(QWidget):
             return
 
         # Modo Padrão
-        self.limpar_destaques_algoritmos()
+        # self.limpar_destaques_algoritmos()
 
         if vertice_clicado is not None:
             # Registra se ele já estava selecionado antes deste clique

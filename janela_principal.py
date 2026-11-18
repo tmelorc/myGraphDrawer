@@ -119,9 +119,12 @@ class JanelaPrincipal(QMainWindow):
         self.acao_caminho_minimo.triggered.connect(
             self.executar_caminho_minimo)
 
-        self.acao_componentes = QAction("Colorir Componentes Conexas", self)
+        self.acao_componentes = QAction("Componentes Conexas", self)
         self.acao_componentes.triggered.connect(
-            self.executar_componentes_conexos)
+            self.executar_componentes_conexas)
+
+        # self.arvore_geradora = QAction("Árvore Geradora", self)
+        # self.arvore_geradora.triggered.connect(self.executar_arvore_geradora)
 
         self.acao_limpar_destaques = QAction("Limpar Cores/Destaques", self)
         self.acao_limpar_destaques.triggered.connect(
@@ -137,8 +140,12 @@ class JanelaPrincipal(QMainWindow):
             self.cena.destacar_caminho_hamiltoniano
         )
 
-        self.acao_pontes = QAction("Destacar Pontes", self)
+        self.acao_pontes = QAction("Pontes", self)
         self.acao_pontes.triggered.connect(self.executar_pontes)
+
+        self.acao_arvore_geradora = QAction("Árvore(s) Geradora(s)", self)
+        self.acao_arvore_geradora.triggered.connect(
+            self.executar_arvore_geradora)
 
         self.acao_sobre = QAction("&Sobre", self)
         self.acao_sobre.triggered.connect(self.mostrar_sobre)
@@ -168,6 +175,7 @@ class JanelaPrincipal(QMainWindow):
         menu_algoritmos.addAction(self.acao_caminho_minimo)
         menu_algoritmos.addAction(self.acao_componentes)
         menu_algoritmos.addAction(self.acao_pontes)
+        menu_algoritmos.addAction(self.acao_arvore_geradora)
         menu_algoritmos.addSeparator()
         menu_algoritmos.addAction(self.acao_limpar_destaques)
 
@@ -558,11 +566,11 @@ class JanelaPrincipal(QMainWindow):
                 f"Caminho mínimo ({u} até {v}): {seq_str} (comprimento: {len(caminho) - 1})"
             )
 
-    def executar_componentes_conexos(self) -> None:
-        componentes = self.modelo.obter_componentes_conexos()
+    def executar_componentes_conexas(self) -> None:
+        componentes = self.modelo.obter_componentes_conexas()
         if not componentes:
             return
-        self.cena.colorir_componentes_conexos(componentes)
+        self.cena.destacar_componentes_conexas(componentes)
         self.statusBar().showMessage(
             f"Exibindo {len(componentes)} componente(s) conexa(s).")
 
@@ -577,6 +585,17 @@ class JanelaPrincipal(QMainWindow):
             lista += ", ..."
         self.statusBar().showMessage(
             f"{len(pontes)} ponte(s) encontrada(s): {lista}", 6000)
+
+    def executar_arvore_geradora(self) -> None:
+        arvore = self.modelo.obter_arvore_geradora()
+        if arvore is None:
+            QMessageBox.information(
+                self, "Árvore Geradora", "Não foi possível detectar uma árvore geradora.")
+            return
+        self.cena.destacar_arvore_geradora(arvore)
+        self.statusBar().showMessage(
+            f"Árvore(s) geradora(s) destacada(s)."
+        )
 
     # =========================================================================
     # 4. PERSISTÊNCIA (NOVO, ABRIR JSON, SALVAR JSON, EXPORTAR PNG)

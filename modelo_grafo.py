@@ -43,7 +43,7 @@ class ModeloGrafo:
 
     def adicionar_vertice(self, x: float, y: float, vertice_id: Optional[int] = None) -> int:
         """
-        Adiciona um vértice ao grafo com ID incremental fixo (Opção B).
+        Adiciona um vértice ao grafo com ID incremental fixo.
         Se vertice_id for informado (ex: ao carregar JSON), utiliza-o e ajusta o contador.
         """
         if vertice_id is None:
@@ -155,13 +155,20 @@ class ModeloGrafo:
         except nx.NetworkXNoPath:
             return None
 
-    def obter_componentes_conexos(self) -> List[List[int]]:
+    def obter_componentes_conexas(self) -> List[List[int]]:
         """Retorna lista de listas com os IDs de cada componente conexo."""
         return [sorted(list(comp)) for comp in nx.connected_components(self.grafo)]
 
     def obter_pontes(self) -> List[Tuple[int, int]]:
         """Arestas cuja remoção aumenta o número de componentes conexos, como (u, v) com u < v."""
         return sorted((min(u, v), max(u, v)) for u, v in nx.bridges(self.grafo))
+
+    def obter_arvore_geradora(self) -> Optional[List[Tuple[int, int]]]:
+        """Retorna uma lista de arestas (u, v) que formam uma árvore geradora, ou None se o grafo for desconexo."""
+        # if not nx.is_connected(self.grafo):
+        #     return None
+        arvore = nx.minimum_spanning_tree(self.grafo)
+        return sorted((min(u, v), max(u, v)) for u, v in arvore.edges())
 
     # =========================================================================
     # 4. MÉTRICAS EXTENSÍVEIS (PAINEL LATERAL)
@@ -212,7 +219,7 @@ class ModeloGrafo:
             return "Vazio"
         return "Sim" if nx.is_connected(self.grafo) else "Não"
 
-    @registrar_metrica("Componentes Conexos")
+    @registrar_metrica("Componentes Conexas")
     def metrica_num_componentes(self) -> int:
         if self.grafo.number_of_nodes() == 0:
             return 0
