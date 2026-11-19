@@ -27,6 +27,7 @@ class ModeloGrafo:
 
     def __init__(self) -> None:
         self.grafo: nx.Graph = nx.Graph()
+        self.sub_grafo_nao_planar = None
         self._proximo_id: int = 0
         # Armazena coordenadas visuais {id_vertice: (x, y)} para sincronia e JSON
         self.posicoes: Dict[int, Tuple[float, float]] = {}
@@ -56,6 +57,7 @@ class ModeloGrafo:
 
         self.grafo.add_node(vid)
         self.posicoes[vid] = (float(x), float(y))
+        print(vid, self.posicoes[vid])
         return vid
 
     def atualizar_posicao(self, vid: int, x: float, y: float) -> None:
@@ -239,9 +241,17 @@ class ModeloGrafo:
 
     @registrar_metrica("Planar")
     def metrica_planar(self) -> str:
+        self.sub_grafo_nao_planar = None
+
         if self.grafo.number_of_nodes() < 5:
             return "Sim"
-        eh_planar, _ = nx.check_planarity(self.grafo)
+        eh_planar, sub_grafo = nx.check_planarity(
+            self.grafo, counterexample=True)
+        if not eh_planar:
+            self.sub_grafo_nao_planar = list(sub_grafo.edges())
+
+            print(self.sub_grafo_nao_planar)
+
         return "Sim" if eh_planar else "Não"
 
     @registrar_metrica("Hamiltoniano")

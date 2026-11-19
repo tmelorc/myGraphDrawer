@@ -1,6 +1,7 @@
 # todo: ao arrastar um vértice, não quero limpar o destaque de algoritmos, mas sim manter o destaque de vizinhança (ou seja, não chamar self.limpar_destaques_algoritmos() no mousePressEvent)
 # todo: se aresta está selecionada, ao destacar como adjacente em um vértice, colorir a aresta selecionada como as demais adjacentes, voltando à cor de seleção após tirar o mouse do vértice.
-# todo: destacar o subgrafo K_3,3 ou k_5 quando não for planar.
+# todo: manter o destaque do subgrafo K_{3,3} ou k_5 quando deletar algo.
+# raise nas arestas destacadas em algoritmos
 
 import math
 import networkx as nx
@@ -44,10 +45,8 @@ class CanvasGrafo(QWidget):
         self._arestas_selecionadas: Set[Tuple[int, int]] = set()
         self._origem_aresta: Optional[int] = None
 
-        # TODO
-        # Estado de arrasto em grupo (substitui ou complementa o _vertice_arrastado único)
-        # self._pos_mouse_inicio_arrasto: Optional[QPointF] = None
-        # self._posicoes_iniciais_arrasto: dict[int, QPointF] = {}
+        # Estado de seleção em algoritmo
+        self._arestas_selecionadas_alg: Set[Tuple[int, int]] = set()
 
         # Controle de arraste
         self._arrastando_vertice: Optional[int] = None
@@ -66,6 +65,8 @@ class CanvasGrafo(QWidget):
         self._cor_vertice_vizinho = QColor("#ff8800")
         self._cor_selecionado = QColor("#ff3300")
         self._cor_origem_aresta = QColor("#ff5500")
+        self._cor_off = QColor("#cccccc")
+        self._cor_nao_planar = QColor("#ff0000")
 
         self._pen_aresta = QPen(QColor("#333333"), 2.6,
                                 Qt.PenStyle.SolidLine, Qt.PenCapStyle.RoundCap)
@@ -73,6 +74,8 @@ class CanvasGrafo(QWidget):
             QColor("#ff7700"), 4.0, Qt.PenStyle.SolidLine, Qt.PenCapStyle.RoundCap)
         self._pen_aresta_sel = QPen(
             QColor("#ff3300"), 4.5, Qt.PenStyle.SolidLine, Qt.PenCapStyle.RoundCap)
+        self._pen_aresta_off = QPen(
+            self._cor_off, 2.0, Qt.PenStyle.SolidLine, Qt.PenCapStyle.RoundCap)
 
         self._pen_borda_vertice = QPen(QColor("#ffffff"), 2.0)
         self._pen_borda_destaque = QPen(QColor("#ffffff"), 2.6)
@@ -137,6 +140,16 @@ class CanvasGrafo(QWidget):
 
     def obter_vertices_selecionados(self) -> List[int]:
         return sorted(self._vertices_selecionados)
+
+    def _prioridade_aresta(self, u: int, v: int) -> int:
+        aresta_norm = (min(u, v), max(u, v))
+        if self._aresta_hover in ((u, v), (v, u), aresta_norm):
+            return 3  # Topo absoluto entre as arestas
+        if aresta_norm in self._arestas_selecionadas_alg:
+            return 2  # Acima das normais e de algoritmos
+        if aresta_norm in self._arestas_selecionadas:
+            return 1  # Acima das normais
+        return 0      # Ordem padrão (inserção no NetworkX)
 
     # =================================================================
     # 2. OPERAÇÕES NO GRAFO
@@ -276,6 +289,7 @@ class CanvasGrafo(QWidget):
 
     def destacar_arvore_geradora(self, arvore: List[Tuple[int, int]]) -> None:
         self.limpar_destaques_algoritmos()
+        self._limpar_selecao()
         for u, v in self.modelo.grafo.edges():
             if (min(u, v), max(u, v)) not in arvore:
                 self._cores_arestas_alg[(min(u, v), max(u, v))] = QColor(
@@ -316,14 +330,54 @@ class CanvasGrafo(QWidget):
             for i in range(len(caminho) - 1)
         }
 
+        # self._arestas_selecionadas_alg = self._arestas_destacadas
+
         sequencia_str = " → ".join(map(str, caminho))
         self.mensagem_status.emit(f"Caminho Hamiltoniano: {sequencia_str}", 0)
-        cor = QColor("#00aa55")
-        for vid in caminho:
-            self._cores_vertices_alg[vid] = cor
-        for i in range(len(caminho) - 1):
-            u, v = caminho[i], caminho[i + 1]
-            self._cores_arestas_alg[(min(u, v), max(u, v))] = cor
+        # cor = self._cor_selecionado
+
+        for u, v in self.modelo.grafo.edges():
+            if (min(u, v), max(u, v)) not in self._arestas_destacadas:
+                self._cores_arestas_alg[(min(u, v), max(u, v))] = self._cor_off
+            else:
+                self._cores_arestas_alg[(
+                    min(u, v), max(u, v))] = QColor("#00aa55")
+
+        # for vid in caminho:
+        #     self._cores_vertices_alg[vid] = cor
+        # for i in range(len(caminho) - 1):
+        #     u, v = caminho[i], caminho[i + 1]
+        #     self._cores_arestas_alg[(min(u, v), max(u, v))
+        #                             ] = cor
+        self.update()
+
+    def destacar_subgrafo_nao_planar(self) -> None:
+        """Destaca em vermelho as arestas do subgrafo de Kuratowski (se não planar)."""
+        print("destacando subgrafo não planar")
+
+        arestas_kuratowski = getattr(self.modelo, "sub_grafo_nao_planar", None)
+
+        if not arestas_kuratowski:
+            self.mensagem_status.emit(
+                "O grafo atual é planar (nenhum subgrafo de Kuratowski).", 3000)
+            return
+
+        self.limpar_destaques_algoritmos()
+        self._limpar_selecao()
+
+        # cor_vermelha = getattr(self, "_cor_nao_planar", QColor("#e53935"))
+
+        for u, v in self.modelo.grafo.edges():
+            if (u, v) in arestas_kuratowski or (v, u) in arestas_kuratowski:
+                # print(u, v)
+                self._cores_arestas_alg[(min(u, v), max(u, v))
+                                        ] = self._cor_nao_planar
+            else:
+                self._cores_arestas_alg[(min(u, v), max(u, v))] = self._cor_off
+
+        self.mensagem_status.emit(
+            "Subgrafo não planar destacado (K₅ / K₃,₃).", 3000)
+
         self.update()
 
     # =================================================================
@@ -380,6 +434,12 @@ class CanvasGrafo(QWidget):
         if self._vertice_hover is not None and self._vertice_hover in self.modelo.grafo:
             vizinhos_hover = set(
                 self.modelo.grafo.neighbors(self._vertice_hover))
+
+        # Ordenando arestas
+        self.arestas_ordenadas = sorted(
+            self.modelo.grafo.edges(),
+            key=lambda e: self._prioridade_aresta(e[0], e[1])
+        )
 
         # 1. Arestas
         for u, v in self.modelo.grafo.edges():

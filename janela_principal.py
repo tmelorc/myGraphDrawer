@@ -78,6 +78,9 @@ class JanelaPrincipal(QMainWindow):
         self.cena.mensagem_status.connect(self.statusBar().showMessage)
         self.cena.vertice_hover_alterado.connect(self.destacar_linha_vertice)
 
+        # atalho_nao_planar = QShortcut(QKeySequence("Ctrl+K"), self)
+        # atalho_nao_planar.activated.connect(self.canvas.destacar_subgrafo_nao_planar)
+
         self.atualizar_painel_analise()
 
     # =========================================================================
@@ -134,6 +137,13 @@ class JanelaPrincipal(QMainWindow):
         self.acao_selecionar_tudo = QAction("Selecionar Tudo", self)
         self.acao_selecionar_tudo.setShortcut("Ctrl+A")
         self.acao_selecionar_tudo.triggered.connect(self.cena.selecionar_tudo)
+
+        # teste de ação para destacar subgrafo não planar
+        self.acao_sub_grafo_nao_planar = QAction("Não planaridade", self)
+        self.acao_sub_grafo_nao_planar.setShortcut("Ctrl+K")
+        self.acao_sub_grafo_nao_planar.triggered.connect(
+            self.cena.destacar_subgrafo_nao_planar)
+        self.addAction(self.acao_sub_grafo_nao_planar)
 
         self.acao_caminho_hamiltoniano = QAction(
             "Caminho Hamiltoniano", self)

@@ -1,0 +1,180 @@
+{
+  "aplicacao": "myGraphDrawer",
+  "tipo": "nao_direcionado",
+  "proximo_id": 11,
+  "vertices": [
+    {
+      "id": 0,
+      "x": 457.7220296550077,
+      "y": 196.64938301206806
+    },
+    {
+      "id": 1,
+      "x": 325.38091040761094,
+      "y": 569.2190272473358
+    },
+    {
+      "id": 2,
+      "x": 740.0,
+      "y": 558.6414314342603
+    },
+    {
+      "id": 3,
+      "x": 220.06714741003128,
+      "y": 474.6082347534068
+    },
+    {
+      "id": 4,
+      "x": 418.4406567235236,
+      "y": 450.2836897546671
+    },
+    {
+      "id": 5,
+      "x": 70.0,
+      "y": 598.8139342875559
+    },
+    {
+      "id": 6,
+      "x": 334.0321676504713,
+      "y": 143.34820067536458
+    },
+    {
+      "id": 7,
+      "x": 298.53259110783773,
+      "y": 341.12964705100256
+    },
+    {
+      "id": 8,
+      "x": 719.7162242841125,
+      "y": 662.1122897772641
+    },
+    {
+      "id": 9,
+      "x": 112.62212519687932,
+      "y": 346.04234951340396
+    },
+    {
+      "id": 10,
+      "x": 189.86770491016995,
+      "y": 692.7696940614776
+    }
+  ],
+  "arestas": [
+    {
+      "origem": 0,
+      "destino": 4
+    },
+    {
+      "origem": 0,
+      "destino": 6
+    },
+    {
+      "origem": 0,
+      "destino": 7
+    },
+    {
+      "origem": 0,
+      "destino": 9
+    },
+    {
+      "origem": 1,
+      "destino": 3
+    },
+    {
+      "origem": 1,
+      "destino": 4
+    },
+    {
+      "origem": 1,
+      "destino": 5
+    },
+    {
+      "origem": 1,
+      "destino": 7
+    },
+    {
+      "origem": 1,
+      "destino": 9
+    },
+    {
+      "origem": 1,
+      "destino": 10
+    },
+    {
+      "origem": 2,
+      "destino": 4
+    },
+    {
+      "origem": 2,
+      "destino": 8
+    },
+    {
+      "origem": 3,
+      "destino": 4
+    },
+    {
+      "origem": 3,
+      "destino": 5
+    },
+    {
+      "origem": 3,
+      "destino": 7
+    },
+    {
+      "origem": 3,
+      "destino": 9
+    },
+    {
+      "origem": 3,
+      "destino": 10
+    },
+    {
+      "origem": 4,
+      "destino": 6
+    },
+    {
+      "origem": 4,
+      "destino": 7
+    },
+    {
+      "origem": 4,
+      "destino": 9
+    },
+    {
+      "origem": 4,
+      "destino": 10
+    },
+    {
+      "origem": 5,
+      "destino": 7
+    },
+    {
+      "origem": 5,
+      "destino": 9
+    },
+    {
+      "origem": 5,
+      "destino": 10
+    },
+    {
+      "origem": 6,
+      "destino": 7
+    },
+    {
+      "origem": 6,
+      "destino": 9
+    },
+    {
+      "origem": 7,
+      "destino": 9
+    },
+    {
+      "origem": 7,
+      "destino": 10
+    },
+    {
+      "origem": 9,
+      "destino": 10
+    }
+  ]
+}
