@@ -102,6 +102,14 @@ class ModeloGrafo:
     # 2. MATRIZES DO GRAFO (ADJACÊNCIA, INCIDÊNCIA E LAPLACIANA)
     # =========================================================================
 
+    def obter_vertices_de_corte(self) -> set[int]:
+        """Retorna o conjunto de IDs dos vértices de corte (pontos de articulação)."""
+        if self.grafo.number_of_nodes() < 3:
+            return set()
+
+        grafo_base = self.grafo.to_undirected() if self.grafo.is_directed() else self.grafo
+        return set(nx.articulation_points(grafo_base))
+
     def obter_matriz_adjacencia(self) -> Tuple[List[int], np.ndarray]:
         """Retorna (lista_ids_ordenados, matriz_adjacencia_numpy)."""
         nos = self.vertices_ordenados()

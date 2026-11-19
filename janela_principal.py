@@ -264,11 +264,11 @@ class JanelaPrincipal(QMainWindow):
             QTableWidget.EditTrigger.NoEditTriggers)
         layout_props.addWidget(self.tabela_metricas)
 
-        layout_props.addWidget(QLabel("<b>Grau por Vértice</b>"))
+        layout_props.addWidget(QLabel("<b>Vértices</b>"))
 
-        self.tabela_graus = QTableWidget(0, 3)
+        self.tabela_graus = QTableWidget(0, 4)
         self.tabela_graus.setHorizontalHeaderLabels(
-            ["Vértice", "Grau", "Vizinhos"])
+            ["Vértice", "Grau", "Corte", "Vizinhos"])
         self.tabela_graus.horizontalHeader().setSectionResizeMode(
             QHeaderView.ResizeMode.Interactive)
         self.tabela_graus.horizontalHeader().setStretchLastSection(True)
@@ -352,11 +352,14 @@ class JanelaPrincipal(QMainWindow):
             self.tabela_metricas.setItem(linha, 1, item_val)
 
         nos = self.modelo.vertices_ordenados()
+        vertices_corte = self.modelo.obter_vertices_de_corte()
         self.tabela_graus.setRowCount(len(nos))
+
         for linha, vid in enumerate(nos):
             grau = self.modelo.grafo.degree(vid)
             vizinhos = sorted(self.modelo.grafo.neighbors(vid))
             vizinhos_str = ", ".join(map(str, vizinhos)) if vizinhos else "-"
+            eh_corte = vid in vertices_corte
 
             item_id = QTableWidgetItem(str(vid))
             item_id.setTextAlignment(Qt.AlignmentFlag.AlignCenter)
@@ -364,9 +367,13 @@ class JanelaPrincipal(QMainWindow):
             item_grau = QTableWidgetItem(str(grau))
             item_grau.setTextAlignment(Qt.AlignmentFlag.AlignCenter)
 
+            item_corte = QTableWidgetItem("Sim" if eh_corte else "Não")
+            item_corte.setTextAlignment(Qt.AlignmentFlag.AlignCenter)
+
             self.tabela_graus.setItem(linha, 0, item_id)
             self.tabela_graus.setItem(linha, 1, item_grau)
-            self.tabela_graus.setItem(linha, 2, QTableWidgetItem(vizinhos_str))
+            self.tabela_graus.setItem(linha, 2, item_corte)
+            self.tabela_graus.setItem(linha, 3, QTableWidgetItem(vizinhos_str))
 
         self._atualizar_tabela_matriz()
 
