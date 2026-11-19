@@ -1,4 +1,7 @@
 # todo: ao arrastar um vértice, não quero limpar o destaque de algoritmos, mas sim manter o destaque de vizinhança (ou seja, não chamar self.limpar_destaques_algoritmos() no mousePressEvent)
+# todo: se aresta está selecionada, ao destacar como adjacente em um vértice, colorir a aresta selecionada como as demais adjacentes, voltando à cor de seleção após tirar o mouse do vértice.
+# todo: destacar o subgrafo K_3,3 ou k_5 quando não for planar.
+
 import math
 import networkx as nx
 from typing import Dict, List, Optional, Set, Tuple
@@ -182,14 +185,15 @@ class CanvasGrafo(QWidget):
         self.update()
 
     def limpar_tudo(self) -> None:
-        self._origem_aresta = None
-        self._vertice_hover = None
-        self._aresta_hover = None
-        self._limpar_selecao()
-        self.limpar_destaques_algoritmos()
         self.modelo.limpar()
-        self.grafo_alterado.emit()
-        self.update()
+        self.reconstruir_do_modelo()
+        # self._origem_aresta = None
+        # self._vertice_hover = None
+        # self._aresta_hover = None
+        # self._limpar_selecao()
+        # self.limpar_destaques_algoritmos()
+        # self.grafo_alterado.emit()
+        # self.update()
 
     def reconstruir_do_modelo(self) -> None:
         """Reconstrói a visualização do grafo a partir do modelo, preservando seleção e destaques."""
@@ -280,16 +284,50 @@ class CanvasGrafo(QWidget):
                     min(u, v), max(u, v))] = QColor("#00aa55")
         self.update()
 
+    def destacar_caminho_hamiltoniano(self) -> None:
+        """Busca e destaca visualmente um Caminho Hamiltoniano no grafo atual."""
+        self.limpar_destaques_algoritmos()
+        self._limpar_selecao()
+
+        caminho, status = self.modelo.encontrar_caminho_hamiltoniano()
+
+        if status == "vazio":
+            self.mensagem_status.emit("O grafo está vazio.", 3000)
+            return
+
+        if status == "limite_excedido":
+            self.mensagem_status.emit(
+                "Busca interrompida: limite de operações atingido para este grafo.",
+                3000,
+            )
+            self.update()
+            return
+
+        if caminho is None:
+            self.mensagem_status.emit(
+                "Nenhum Caminho Hamiltoniano encontrado neste grafo.", 3000)
+            self.update()
+            return
+
+        self._vertices_destacados = set(caminho)
+        self._arestas_destacadas = {
+            (min(caminho[i], caminho[i + 1]), max(caminho[i], caminho[i + 1]))
+            for i in range(len(caminho) - 1)
+        }
+
+        sequencia_str = " → ".join(map(str, caminho))
+        self.mensagem_status.emit(f"Caminho Hamiltoniano: {sequencia_str}", 0)
+        cor = QColor("#00aa55")
+        for vid in caminho:
+            self._cores_vertices_alg[vid] = cor
+        for i in range(len(caminho) - 1):
+            u, v = caminho[i], caminho[i + 1]
+            self._cores_arestas_alg[(min(u, v), max(u, v))] = cor
+        self.update()
+
     # =================================================================
     # 4. DETECÇÃO GEOMÉTRICA
     # =================================================================
-
-    def _obter_vertice_em(self, x: float, y: float) -> Optional[int]:
-        for vid in reversed(self.modelo.vertices_ordenados()):
-            vx, vy = self.modelo.posicoes[vid]
-            if math.hypot(x - vx, y - vy) <= self.RAIO_VERTICE:
-                return vid
-        return None
 
     @staticmethod
     def _distancia_ponto_segmento(px: float, py: float, ax: float, ay: float, bx: float, by: float) -> float:
@@ -299,6 +337,13 @@ class CanvasGrafo(QWidget):
             return math.hypot(px - ax, py - ay)
         t = max(0.0, min(1.0, ((px - ax) * dx + (py - ay) * dy) / l2))
         return math.hypot(px - (ax + t * dx), py - (ay + t * dy))
+
+    def _obter_vertice_em(self, x: float, y: float) -> Optional[int]:
+        for vid in reversed(self.modelo.vertices_ordenados()):
+            vx, vy = self.modelo.posicoes[vid]
+            if math.hypot(x - vx, y - vy) <= self.RAIO_VERTICE:
+                return vid
+        return None
 
     def _obter_aresta_em(self, x: float, y: float) -> Optional[Tuple[int, int]]:
         melhor: Optional[Tuple[int, int]] = None
@@ -312,9 +357,9 @@ class CanvasGrafo(QWidget):
                 melhor = (min(u, v), max(u, v))
         return melhor
 
-    # =========================================================================
+    # =================================================================
     # 5. RENDERIZAÇÃO (COM DESTAQUE DE VIZINHANÇA)
-    # =========================================================================
+    # =================================================================
 
     def paintEvent(self, event) -> None:
         painter = QPainter(self)
@@ -333,6 +378,7 @@ class CanvasGrafo(QWidget):
             ax, ay = self.modelo.posicoes[u]
             bx, by = self.modelo.posicoes[v]
 
+            # aresta uv incide no vértice hover?
             incidente_no_hover = (
                 self._vertice_hover is not None and (
                     u == self._vertice_hover or v == self._vertice_hover)
@@ -381,6 +427,7 @@ class CanvasGrafo(QWidget):
                 painter.setPen(self._pen_borda_vertice)
 
             painter.drawEllipse(x_esq, y_topo, diametro, diametro)
+            # painter.drawRoundedRect(x_esq, y_topo, diametro, diametro, 5, 5)
 
             painter.setPen(self._pen_texto)
             painter.drawText(x_esq, y_topo, diametro, diametro,
@@ -388,9 +435,9 @@ class CanvasGrafo(QWidget):
 
         painter.end()
 
-    # =========================================================================
+    # =================================================================
     # 6. EVENTOS DE MOUSE E TECLADO
-    # =========================================================================
+    # =================================================================
 
     def mousePressEvent(self, event: QMouseEvent) -> None:
         self.setFocus()
@@ -422,7 +469,7 @@ class CanvasGrafo(QWidget):
                             f"Aresta {{{self._origem_aresta}, {destino}}} criada.", 0)
                     else:
                         self.mensagem_status.emit(
-                            f"Aresta entre {self._origem_aresta} e {destino} já existe.", 0)
+                            f"Aresta {{{self._origem_aresta}, {destino}}} já existe.", 0)
                     self._origem_aresta = None
             self.update()
             return
@@ -534,10 +581,6 @@ class CanvasGrafo(QWidget):
         super().leaveEvent(event)
 
     def keyPressEvent(self, event: QKeyEvent) -> None:
-        # if event.key() == Qt.Key.Key_E:
-        #     self.alternar_modo_aresta()
-        # elif event.key() in (Qt.Key.Key_Delete, Qt.Key.Key_Backspace):
-        #     self.excluir_selecionados()
         if event.key() == Qt.Key.Key_Escape:
             if self._origem_aresta is not None:
                 self._origem_aresta = None
@@ -552,44 +595,3 @@ class CanvasGrafo(QWidget):
             self.update()
         else:
             super().keyPressEvent(event)
-
-    def destacar_caminho_hamiltoniano(self) -> None:
-        """Busca e destaca visualmente um Caminho Hamiltoniano no grafo atual."""
-        self.limpar_destaques_algoritmos()
-        self._limpar_selecao()
-
-        caminho, status = self.modelo.encontrar_caminho_hamiltoniano()
-
-        if status == "vazio":
-            self.mensagem_status.emit("O grafo está vazio.", 3000)
-            return
-
-        if status == "limite_excedido":
-            self.mensagem_status.emit(
-                "Busca interrompida: limite de operações atingido para este grafo.",
-                3000,
-            )
-            self.update()
-            return
-
-        if caminho is None:
-            self.mensagem_status.emit(
-                "Nenhum Caminho Hamiltoniano encontrado neste grafo.", 3000)
-            self.update()
-            return
-
-        self._vertices_destacados = set(caminho)
-        self._arestas_destacadas = {
-            (min(caminho[i], caminho[i + 1]), max(caminho[i], caminho[i + 1]))
-            for i in range(len(caminho) - 1)
-        }
-
-        sequencia_str = " → ".join(map(str, caminho))
-        self.mensagem_status.emit(f"Caminho Hamiltoniano: {sequencia_str}", 0)
-        cor = QColor("#00aa55")
-        for vid in caminho:
-            self._cores_vertices_alg[vid] = cor
-        for i in range(len(caminho) - 1):
-            u, v = caminho[i], caminho[i + 1]
-            self._cores_arestas_alg[(min(u, v), max(u, v))] = cor
-        self.update()
