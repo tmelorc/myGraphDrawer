@@ -22,6 +22,7 @@ class CanvasGrafo(QWidget):
     grafo_alterado = pyqtSignal()
     modo_alterado = pyqtSignal(bool)
     mensagem_status = pyqtSignal(str, int)
+    vertice_hover_alterado = pyqtSignal(object)  # int (ID do vértice) ou None
 
     RAIO_VERTICE = 18
     TOLERANCIA_ARESTA = 8.0
@@ -357,6 +358,14 @@ class CanvasGrafo(QWidget):
                 melhor = (min(u, v), max(u, v))
         return melhor
 
+    def _obter_vertices_para_mover(self) -> set[int]:
+        """Retorna o conjunto único de vértices que devem se mover juntos."""
+        vertices = set(self._vertices_selecionados)
+        for u, v in self._arestas_selecionadas:
+            vertices.add(u)
+            vertices.add(v)
+        return vertices
+
     # =================================================================
     # 5. RENDERIZAÇÃO (COM DESTAQUE DE VIZINHANÇA)
     # =================================================================
@@ -527,15 +536,8 @@ class CanvasGrafo(QWidget):
         novo_vid = self.criar_vertice(x, y)
         self._vertices_selecionados.add(novo_vid)
         self._vertice_hover = novo_vid
+        self.vertice_hover_alterado.emit(novo_vid)
         self.update()
-
-    def _obter_vertices_para_mover(self) -> set[int]:
-        """Retorna o conjunto único de vértices que devem se mover juntos."""
-        vertices = set(self._vertices_selecionados)
-        for u, v in self._arestas_selecionadas:
-            vertices.add(u)
-            vertices.add(v)
-        return vertices
 
     def mouseMoveEvent(self, event: QMouseEvent) -> None:
 
@@ -583,8 +585,11 @@ class CanvasGrafo(QWidget):
             x, y)
 
         if novo_v_hover != self._vertice_hover or nova_a_hover != self._aresta_hover:
+            v_anterior = self._vertice_hover
             self._vertice_hover = novo_v_hover
             self._aresta_hover = nova_a_hover
+            if novo_v_hover != v_anterior:
+                self.vertice_hover_alterado.emit(novo_v_hover)
             self.update()
 
     def mouseReleaseEvent(self, event: QMouseEvent) -> None:
@@ -610,8 +615,11 @@ class CanvasGrafo(QWidget):
     def leaveEvent(self, event) -> None:
         """Limpa o destaque de hover quando o cursor sai da área do canvas."""
         if self._vertice_hover is not None or self._aresta_hover is not None:
+            v_anterior = self._vertice_hover
             self._vertice_hover = None
             self._aresta_hover = None
+            if v_anterior is not None:
+                self.vertice_hover_alterado.emit(None)
             self.update()
         super().leaveEvent(event)
 

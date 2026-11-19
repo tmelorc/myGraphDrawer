@@ -2,7 +2,7 @@ import numpy as np
 from typing import List
 from PyQt6.QtCore import Qt
 # from PyQt6.QtGui import QAction, QColor, QKeySequence
-from PyQt6.QtGui import QAction, QColor, QFontDatabase, QKeySequence
+from PyQt6.QtGui import QAction, QColor, QFontDatabase, QKeySequence, QBrush
 from PyQt6.QtWidgets import (
     QAbstractItemView,
     QApplication,
@@ -76,6 +76,7 @@ class JanelaPrincipal(QMainWindow):
         self.cena.modo_alterado.connect(self._ao_alterar_modo)
         # self.cena.mensagem_status.connect(self._exibir_mensagem_status)
         self.cena.mensagem_status.connect(self.statusBar().showMessage)
+        self.cena.vertice_hover_alterado.connect(self.destacar_linha_vertice)
 
         self.atualizar_painel_analise()
 
@@ -276,6 +277,10 @@ class JanelaPrincipal(QMainWindow):
         self.tabela_graus.verticalHeader().setVisible(False)
         self.tabela_graus.setEditTriggers(
             QTableWidget.EditTrigger.NoEditTriggers)
+        self.tabela_graus.setSelectionMode(
+            QAbstractItemView.SelectionMode.NoSelection)
+        self.tabela_graus.setFocusPolicy(Qt.FocusPolicy.NoFocus)
+
         layout_props.addWidget(self.tabela_graus)
 
         abas.addTab(widget_props, "Propriedades")
@@ -752,3 +757,40 @@ class JanelaPrincipal(QMainWindow):
             self.setWindowTitle(f"{info_app.NOME} — {self._arquivo_atual}")
         else:
             self.setWindowTitle(info_app.TITULO_JANELA)
+
+    def destacar_linha_vertice(self, vid: int | None) -> None:
+        """Destaca na tabela a linha correspondente ao vértice sob o cursor."""
+        brush_fundo_destaque = QBrush(
+            self.cena._cor_vertice_hover)   # Cor de fundo do destaque
+        brush_texto_destaque = QBrush(
+            QColor("#0000000"))   # Cor do texto destacado
+        brush_padrao = QBrush()
+
+        for linha in range(self.tabela_graus.rowCount()):
+            item_id = self.tabela_graus.item(linha, 0)
+            if item_id is None:
+                continue
+
+            # Recomenda-se guardar o int puro no UserRole ao popular a tabela:
+            # item.setData(Qt.ItemDataRole.UserRole, vid)
+            id_linha = item_id.data(Qt.ItemDataRole.UserRole)
+            if id_linha is None:
+                id_linha = int(item_id.text())
+
+            eh_alvo = (vid is not None and id_linha == vid)
+            brush_fundo = brush_fundo_destaque if eh_alvo else brush_padrao
+            brush_texto = brush_texto_destaque if eh_alvo else brush_padrao
+
+            for coluna in range(self.tabela_graus.columnCount()):
+                celula = self.tabela_graus.item(linha, coluna)
+                if celula is not None:
+                    celula.setBackground(brush_fundo)
+                    celula.setForeground(brush_texto)
+
+                    # Opcional: deixa o texto em negrito enquanto estiver em hover
+                    fonte = celula.font()
+                    fonte.setBold(eh_alvo)
+                    celula.setFont(fonte)
+            # Rola a tabela suavemente caso o vértice esteja fora da área visível
+            if eh_alvo:
+                self.tabela_graus.scrollToItem(item_id)
