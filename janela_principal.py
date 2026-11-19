@@ -759,11 +759,11 @@ class JanelaPrincipal(QMainWindow):
             self.setWindowTitle(info_app.TITULO_JANELA)
 
     def destacar_linha_vertice(self, vid: int | None) -> None:
-        """Destaca na tabela a linha correspondente ao vértice sob o cursor."""
+        """Destaca na tabela de graus a linha correspondente ao vértice sob o cursor."""
         brush_fundo_destaque = QBrush(
-            self.cena._cor_vertice_hover)   # Cor de fundo do destaque
+            self.cena._cor_vertice_hover)
         brush_texto_destaque = QBrush(
-            QColor("#0000000"))   # Cor do texto destacado
+            QColor("#0000000"))
         brush_padrao = QBrush()
 
         for linha in range(self.tabela_graus.rowCount()):
@@ -786,11 +786,12 @@ class JanelaPrincipal(QMainWindow):
                 if celula is not None:
                     celula.setBackground(brush_fundo)
                     celula.setForeground(brush_texto)
-
-                    # Opcional: deixa o texto em negrito enquanto estiver em hover
                     fonte = celula.font()
                     fonte.setBold(eh_alvo)
                     celula.setFont(fonte)
             # Rola a tabela suavemente caso o vértice esteja fora da área visível
             if eh_alvo:
-                self.tabela_graus.scrollToItem(item_id)
+                self.tabela_graus.scrollToItem(
+                    item_id,
+                    QAbstractItemView.ScrollHint.PositionAtCenter
+                )
