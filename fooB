@@ -1,0 +1,26 @@
+        if vertice_clicado is not None:
+            # Registra se ele já estava selecionado antes deste clique
+            self._vertice_ja_estava_selecionado = (
+                self._vertices_selecionados == {vertice_clicado}
+                and not self._arestas_selecionadas
+            )
+            self._houve_arraste = False
+            self._clique_inicial_x = x
+            self._clique_inicial_y = y
+
+            self._limpar_selecao()
+            self._vertices_selecionados.add(vertice_clicado)
+            self._arrastando_vertice = vertice_clicado
+            self.update()
+            return
+
+        aresta_clicada = self._obter_aresta_em(x, y)
+        if aresta_clicada is not None:
+            self._limpar_selecao()
+            self._arestas_selecionadas.add(aresta_clicada)
+            self._arrastando_aresta = aresta_clicada
+            self._ultimo_x = x
+            self._ultimo_y = y
+            self.setCursor(Qt.CursorShape.ClosedHandCursor)
+            self.update()
+            return

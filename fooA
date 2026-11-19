@@ -1,0 +1,43 @@
+if vertice_clicado is not None:
+            # Só considera "já selecionado isoladamente" se era o ÚNICO item selecionado (para o toggle no release)
+            self._vertice_ja_estava_selecionado = (
+                self._vertices_selecionados == {vertice_clicado}
+                and not self._arestas_selecionadas
+            )
+            self._houve_arraste = False
+            self._clique_inicial_x = x
+            self._clique_inicial_y = y
+            self._ultimo_x = x
+            self._ultimo_y = y
+
+            # Preserva a seleção múltipla se o vértice clicado já estiver nela
+            if vertice_clicado not in self._vertices_selecionados:
+                self._limpar_selecao()
+                self._vertices_selecionados.add(vertice_clicado)
+
+            self._arrastando_vertice = vertice_clicado
+            self.update()
+            return
+
+        if aresta_clicada is not None:
+            u, v = aresta_clicada
+            # Normaliza a ordem da tupla caso seu conjunto guarde (min, max) ou ambas as ordens
+            aresta_norm = (min(u, v), max(u, v))
+            ja_selecionada = (
+                aresta_clicada in self._arestas_selecionadas
+                or aresta_norm in self._arestas_selecionadas
+            )
+
+            self._ultimo_x = x
+            self._ultimo_y = y
+
+            # Preserva a seleção múltipla se a aresta clicada já estiver nela
+            if not ja_selecionada:
+                self._limpar_selecao()
+                self._arestas_selecionadas.add(aresta_norm)
+
+            self._arrastando_aresta = aresta_clicada
+            if not self.modo_aresta:
+                self.setCursor(Qt.CursorShape.ClosedHandCursor)
+            self.update()
+            return

@@ -475,10 +475,10 @@ class CanvasGrafo(QWidget):
             return
 
         # Modo Padrão
-        # self.limpar_destaques_algoritmos()
+        vertice_clicado = self._obter_vertice_em(x, y)
 
         if vertice_clicado is not None:
-            # Registra se ele já estava selecionado antes deste clique
+            # Só considera "já selecionado isoladamente" se era o ÚNICO item selecionado (para o toggle no release)
             self._vertice_ja_estava_selecionado = (
                 self._vertices_selecionados == {vertice_clicado}
                 and not self._arestas_selecionadas
@@ -486,21 +486,39 @@ class CanvasGrafo(QWidget):
             self._houve_arraste = False
             self._clique_inicial_x = x
             self._clique_inicial_y = y
+            self._ultimo_x = x
+            self._ultimo_y = y
 
-            self._limpar_selecao()
-            self._vertices_selecionados.add(vertice_clicado)
+            # Preserva a seleção múltipla se o vértice clicado já estiver nela
+            if vertice_clicado not in self._vertices_selecionados:
+                self._limpar_selecao()
+                self._vertices_selecionados.add(vertice_clicado)
+
             self._arrastando_vertice = vertice_clicado
             self.update()
             return
 
         aresta_clicada = self._obter_aresta_em(x, y)
         if aresta_clicada is not None:
-            self._limpar_selecao()
-            self._arestas_selecionadas.add(aresta_clicada)
-            self._arrastando_aresta = aresta_clicada
+            u, v = aresta_clicada
+            # Normaliza a ordem da tupla caso seu conjunto guarde (min, max) ou ambas as ordens
+            aresta_norm = (min(u, v), max(u, v))
+            ja_selecionada = (
+                aresta_clicada in self._arestas_selecionadas
+                or aresta_norm in self._arestas_selecionadas
+            )
+
             self._ultimo_x = x
             self._ultimo_y = y
-            self.setCursor(Qt.CursorShape.ClosedHandCursor)
+
+            # Preserva a seleção múltipla se a aresta clicada já estiver nela
+            if not ja_selecionada:
+                self._limpar_selecao()
+                self._arestas_selecionadas.add(aresta_norm)
+
+            self._arrastando_aresta = aresta_clicada
+            if not self.modo_aresta:
+                self.setCursor(Qt.CursorShape.ClosedHandCursor)
             self.update()
             return
 
@@ -511,7 +529,16 @@ class CanvasGrafo(QWidget):
         self._vertice_hover = novo_vid
         self.update()
 
+    def _obter_vertices_para_mover(self) -> set[int]:
+        """Retorna o conjunto único de vértices que devem se mover juntos."""
+        vertices = set(self._vertices_selecionados)
+        for u, v in self._arestas_selecionadas:
+            vertices.add(u)
+            vertices.add(v)
+        return vertices
+
     def mouseMoveEvent(self, event: QMouseEvent) -> None:
+
         x = float(event.position().x())
         y = float(event.position().y())
 
@@ -521,25 +548,33 @@ class CanvasGrafo(QWidget):
                 self._houve_arraste = True
 
             if self._houve_arraste:
-                vid = self._arrastando_vertice
-                if vid in self.modelo.posicoes:
-                    self.modelo.atualizar_posicao(vid, x, y)
-                    self.update()
+                dx = x - self._ultimo_x
+                dy = y - self._ultimo_y
+                self._ultimo_x = x
+                self._ultimo_y = y
+
+                for vid in self._obter_vertices_para_mover():
+                    if vid in self.modelo.posicoes:
+                        vx, vy = self.modelo.posicoes[vid]
+                        self.modelo.atualizar_posicao(vid, vx + dx, vy + dy)
+                self.update()
+            else:
+                # Mantém _ultimo_x/_ultimo_y sincronizados enquanto ainda está dentro da deadzone de 3px
+                self._ultimo_x = x
+                self._ultimo_y = y
             return
 
         if self._arrastando_aresta is not None:
-            u, v = self._arrastando_aresta
             dx = x - self._ultimo_x
             dy = y - self._ultimo_y
             self._ultimo_x = x
             self._ultimo_y = y
 
-            if u in self.modelo.posicoes and v in self.modelo.posicoes:
-                ux, uy = self.modelo.posicoes[u]
-                vx, vy = self.modelo.posicoes[v]
-                self.modelo.atualizar_posicao(u, ux + dx, uy + dy)
-                self.modelo.atualizar_posicao(v, vx + dx, vy + dy)
-                self.update()
+            for vid in self._obter_vertices_para_mover():
+                if vid in self.modelo.posicoes:
+                    vx, vy = self.modelo.posicoes[vid]
+                    self.modelo.atualizar_posicao(vid, vx + dx, vy + dy)
+            self.update()
             return
 
         # Atualiza estado de hover (repinta apenas se o alvo sob o mouse mudar)
