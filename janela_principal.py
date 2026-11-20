@@ -1,3 +1,4 @@
+# todo: implementar a funcao modo vertice para alternar com modo aresta
 import numpy as np
 from typing import List
 from PyQt6.QtCore import Qt
@@ -38,6 +39,9 @@ from gerador_grafos import GerenciadorGrafosPredefinidos, normalizar_layout
 from layouts import LAYOUTS
 from sobre import DialogoSobre, info_app
 
+from mensagens import conectar_status_bar, Mensagem, notificar, notificar_sequencia
+
+
 LIMITE_VERTICES_MATRIZ = 60
 
 
@@ -48,14 +52,24 @@ class JanelaPrincipal(QMainWindow):
 
     def __init__(self) -> None:
         super().__init__()
-        # self.setWindowTitle("myGraphDrawer — Editor e Analisador de Grafos")
         self.setWindowTitle(info_app.TITULO_JANELA)
         self.resize(1200, 900)
 
-        self._arquivo_atual: str = ""
+        conectar_status_bar(self.statusBar())
+        notificar(Mensagem.MODO_VERTICE)
 
         self.modelo = ModeloGrafo()
         self.cena = CanvasGrafo(self.modelo, self)
+
+        self._arquivo_atual: str = ""
+
+        self.css_status_bar: str = "padding: 8px 8px; font-size: 14px;"
+
+        self.css_modo_vertice: str = self.css_status_bar + \
+            f"font-weight: bold; border-radius: 5px; color: #ffffff; background-color: {self.cena._cor_vertice.name()};"
+
+        self.css_modo_aresta: str = self.css_status_bar + \
+            f"font-weight: bold; border-radius: 5px; color: #ffffff;  background-color: {self.cena._cor_aresta.name()};"
 
         splitter = QSplitter(Qt.Orientation.Horizontal, self)
         splitter.addWidget(self.cena)
@@ -114,6 +128,13 @@ class JanelaPrincipal(QMainWindow):
         self.acao_modo_aresta.setShortcut("E")
         self.acao_modo_aresta.setCheckable(True)
         self.acao_modo_aresta.triggered.connect(self.cena.definir_modo_aresta)
+
+        self.acao_modo_vertice = QAction("Modo Vértice (V)", self)
+        self.acao_modo_vertice.setShortcut("V")
+        self.acao_modo_vertice.setCheckable(True)
+        self.acao_modo_vertice.triggered.connect(
+            self.cena.alternar_modo_aresta)  # <--- arrumar aqui
+        self.addAction(self.acao_modo_vertice)
 
         self.acao_excluir = QAction("Excluir Selecionado", self)
         self.acao_excluir.setShortcut("Delete")
@@ -233,16 +254,26 @@ class JanelaPrincipal(QMainWindow):
 
     def _criar_statusbar(self) -> None:
         self.label_modo = QLabel(" MODO: VÉRTICE ")
-        self.label_modo.setStyleSheet(
-            "background-color: #0066cc; color: white; font-weight: bold; padding: 2px 8px; border-radius: 3px;"
-        )
-        # self.label_author = QLabel("by Thiago de Melo")
-        self.label_author = QLabel(f"by {info_app.AUTOR}")
-        # self.statusBar().addPermanentWidget(self.label_author)
+        self.label_modo.setStyleSheet(self.css_modo_vertice)
         self.statusBar().addPermanentWidget(self.label_modo)
-        self.statusBar().showMessage(
-            "Clique para adicionar vértices | Arraste vértices/arestas | Tecla E: Modo Aresta | Del: Excluir Seleção"
-        )
+
+        # self.label_author = QLabel(f"by {info_app.AUTOR}")
+        # self.statusBar().addPermanentWidget(self.label_author)
+        # barra_status = self.statusBar()
+        # barra_status
+        self.statusBar().setStyleSheet(self.css_status_bar
+                                       # """
+                                       #     QStatusBar {
+                                       #         font-size: 14px;
+                                       #         padding: 8px 8px;
+                                       #         color: #000000;
+                                       #     }
+                                       # """
+                                       )
+
+        # self.statusBar().showMessage(
+        #     "Clique para adicionar vértices | Arraste vértices/arestas | Tecla E: Modo Aresta | Del: Excluir Seleção"
+        # )
 
     # =========================================================================
     # 2. PAINEL LATERAL DE ANÁLISE E MATRIZES
@@ -620,7 +651,7 @@ class JanelaPrincipal(QMainWindow):
         )
 
     # =========================================================================
-    # 4. PERSISTÊNCIA (NOVO, ABRIR JSON, SALVAR JSON, EXPORTAR PNG)
+    # 4. PERSISTÊNCIA (NOVO, SALVAR JSON, ABRIR JSON, SALVAR MAT ADJ, EXPORTAR PNG)
     # =========================================================================
 
     def novo_grafo(self) -> None:
@@ -636,9 +667,13 @@ class JanelaPrincipal(QMainWindow):
 
         self.cena.limpar_tudo()
         self._arquivo_atual = ""
-        # self.setWindowTitle("myGraphDrawer — Editor e Analisador de Grafos")
         self._atualizar_titulo()
-        self.statusBar().showMessage("Novo grafo criado.", 3000)
+
+        if self.cena.modo_aresta:
+            notificar_sequencia(Mensagem.NOVO_GRAFO, Mensagem.MODO_ARESTA)
+        else:
+            notificar_sequencia(Mensagem.NOVO_GRAFO, Mensagem.MODO_VERTICE)
+        # self.statusBar().showMessage("Novo grafo criado.", 3000)
 
     def salvar_json(self) -> None:
         if self.modelo.grafo.number_of_nodes() == 0:
@@ -661,10 +696,14 @@ class JanelaPrincipal(QMainWindow):
         try:
             self.modelo.salvar_json(caminho)
             self._arquivo_atual = caminho
-            # self.setWindowTitle(f"myGraphDrawer — {caminho}")
             self._atualizar_titulo()
-            self.statusBar().showMessage(
-                f"Grafo salvo com sucesso em: {caminho}", 4000)
+            if self.cena.modo_aresta:
+                notificar_sequencia(Mensagem.SALVAR_GRAFO, Mensagem.MODO_ARESTA, params_temp={
+                                    "caminho": caminho})
+            else:
+                notificar_sequencia(Mensagem.SALVAR_GRAFO, Mensagem.MODO_VERTICE, params_temp={
+                                    "caminho": caminho})
+
         except Exception as exc:
             QMessageBox.critical(self, "Erro ao Salvar",
                                  f"Não foi possível salvar o arquivo:\n{exc}")
@@ -683,10 +722,18 @@ class JanelaPrincipal(QMainWindow):
             self.modelo.carregar_json(caminho)
             self.cena.reconstruir_do_modelo()
             self._arquivo_atual = caminho
-            # self.setWindowTitle(f"myGraphDrawer — {caminho}")
             self._atualizar_titulo()
-            self.statusBar().showMessage(
-                f"Grafo carregado de: {caminho}", 4000)
+
+            if self.cena.modo_aresta:
+                notificar_sequencia(Mensagem.ABRIR_GRAFO, Mensagem.MODO_ARESTA, params_temp={
+                                    "caminho": caminho})
+            else:
+                notificar_sequencia(Mensagem.ABRIR_GRAFO, Mensagem.MODO_VERTICE, params_temp={
+                                    "caminho": caminho})
+
+            # notificar(Mensagem.ABRIR_GRAFO, caminho=caminho)
+            # self.statusBar().showMessage(
+            #     f"Grafo carregado de: {caminho}", 4000)
         except Exception as exc:
             QMessageBox.critical(self, "Erro ao Abrir",
                                  f"Arquivo JSON inválido ou corrompido:\n{exc}")
@@ -711,8 +758,15 @@ class JanelaPrincipal(QMainWindow):
 
         try:
             self.modelo.salvar_matriz_adjacencia_csv(caminho)
-            self.statusBar().showMessage(
-                f"Matriz de adjacência salva em: {caminho}", 4000)
+            if self.cena.modo_aresta:
+                notificar_sequencia(Mensagem.SALVAR_MAT_ADJ, Mensagem.MODO_ARESTA, params_temp={
+                                    "caminho": caminho})
+            else:
+                notificar_sequencia(Mensagem.SALVAR_MAT_ADJ, Mensagem.MODO_VERTICE, params_temp={
+                                    "caminho": caminho})
+
+            # self.statusBar().showMessage(
+            #     f"Matriz de adjacência salva em: {caminho}", 4000)
         except OSError as exc:
             QMessageBox.critical(self, "Erro ao Salvar",
                                  f"Não foi possível salvar o arquivo:\n{exc}")
@@ -737,8 +791,12 @@ class JanelaPrincipal(QMainWindow):
 
         pixmap = self.cena.grab()
         if pixmap.save(caminho, "PNG"):
-            self.statusBar().showMessage(
-                f"Imagem exportada para: {caminho}", 4000)
+            if self.cena.modo_aresta:
+                notificar_sequencia(Mensagem.SALVAR_PNG, Mensagem.MODO_ARESTA, params_temp={
+                    "caminho": caminho})
+            else:
+                notificar_sequencia(Mensagem.SALVAR_PNG, Mensagem.MODO_VERTICE, params_temp={
+                    "caminho": caminho})
         else:
             QMessageBox.critical(
                 self, "Erro", "Falha ao exportar a imagem PNG.")
@@ -753,16 +811,17 @@ class JanelaPrincipal(QMainWindow):
         self.acao_modo_aresta.blockSignals(False)
 
         if modo_aresta_ativo:
-            self.label_modo.setText(" MODO: ARESTA (E) ")
-            self.label_modo.setStyleSheet(
-                "background-color: #ff5500; color: white; font-weight: bold; padding: 2px 8px; border-radius: 3px;"
-            )
+            self.label_modo.setText(" MODO: ARESTA ")
+            self.label_modo.setStyleSheet(self.css_modo_aresta)
         else:
-            self.label_modo.setText(" MODO: PADRÃO ")
-            self.label_modo.setStyleSheet(
-                "background-color: #0066cc; color: white; font-weight: bold; padding: 2px 8px; border-radius: 3px;"
-            )
+            self.label_modo.setText(" MODO: VÉRTICE ")
+            self.label_modo.setStyleSheet(self.css_modo_vertice)
+            # self.label_modo.setStyleSheet(
+            #     self.css_status_bar +
+            #     "background-color: #0066cc; color: white; font-weight: bold;"
+            # )
 
+    # verificar se ainda é usada
     def _exibir_mensagem_status(self, texto: str) -> None:
         self.statusBar().showMessage(texto)
 

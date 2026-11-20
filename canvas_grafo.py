@@ -12,6 +12,11 @@ from PyQt6.QtWidgets import QWidget
 
 from modelo_grafo import ModeloGrafo
 from layouts import normalizar_layout, LAYOUTS
+from mensagens import Mensagem, notificar
+
+
+# notificar(Mensagem.VERTICE_CRIADO, vid=vid, x=x, y=y)
+# notificar(Mensagem.GRAFO_PLANAR)
 
 
 class CanvasGrafo(QWidget):
@@ -37,6 +42,7 @@ class CanvasGrafo(QWidget):
 
         # Estado de interação
         self.modo_aresta: bool = False
+        self.modo_vertice: bool = not self.modo_aresta
         self._vertice_hover: Optional[int] = None
         self._aresta_hover: Optional[Tuple[int, int]] = None
 
@@ -60,27 +66,53 @@ class CanvasGrafo(QWidget):
 
         # Recursos gráficos pré-alocados: cores, linhas, fontes
         self._cor_fundo = QColor("#ffffff")
-        self._cor_vertice = QColor("#0066cc")
-        self._cor_vertice_hover = QColor("#0099ff")
-        self._cor_vertice_vizinho = QColor("#ff8800")
-        self._cor_selecionado = QColor("#ff3300")
-        self._cor_origem_aresta = QColor("#ff5500")
-        self._cor_off = QColor("#cccccc")
-        self._cor_nao_planar = QColor("#ff0000")
 
-        self._pen_aresta = QPen(QColor("#333333"), 2.6,
-                                Qt.PenStyle.SolidLine, Qt.PenCapStyle.RoundCap)
+        # Vértices - Azul
+        self._cor_vertice = QColor("#2563eb")
+        self._cor_vertice_hover = QColor("#60a5fa")
+        self._cor_vertice_vizinho = QColor("#93c5fd")
+        self._cor_vertice_selecionado = QColor("#1d4ed8")
+
+        # Arestas - Laranja
+        self._cor_aresta = QColor("#ea580c")
+        self._cor_aresta_hover = QColor("#fb923c")
+        self._cor_aresta_vizinho = QColor("#9333ea")
+        self._cor_aresta_selecionado = QColor("#9a3412")
+
+        # Outros
+        self._cor_off = QColor("#e2e8f0")
+        self._cor_origem_aresta = QColor("#be123c")
+
+        # precisa deletar essa e reescrever
+        self._cor_selecionado = QColor("#ff3300")
+
+        self._cor_kuratowski = QColor("#16A34A")  # verde folha
+        # self._cor_kuratowski = QColor("#059669") # verde esmeralda
+
+        # Destaque do subgrafo
+        self._cor_vertice_alg = QColor("#86efac")
+        self._cor_aresta_alg = QColor("#16a34a")
+        # Texto dos vértices
+        self._cor_texto_vertice_subgrafo = QColor("#14532d")
+        self._cor_texto_vertice_off = QColor("#94a3b8")
+
+        self._cores_textos_alg: dict[int, QColor] = {}
+
+        self._pen_aresta = QPen(
+            self._cor_aresta, 2.6, Qt.PenStyle.SolidLine, Qt.PenCapStyle.RoundCap)
         self._pen_aresta_hover = QPen(
-            QColor("#ff7700"), 4.0, Qt.PenStyle.SolidLine, Qt.PenCapStyle.RoundCap)
+            self._cor_aresta_hover, 4.0, Qt.PenStyle.SolidLine, Qt.PenCapStyle.RoundCap)
         self._pen_aresta_sel = QPen(
-            QColor("#ff3300"), 4.5, Qt.PenStyle.SolidLine, Qt.PenCapStyle.RoundCap)
+            self._cor_aresta_selecionado, 4.5, Qt.PenStyle.SolidLine, Qt.PenCapStyle.RoundCap)
         self._pen_aresta_off = QPen(
             self._cor_off, 2.0, Qt.PenStyle.SolidLine, Qt.PenCapStyle.RoundCap)
 
         self._pen_borda_vertice = QPen(QColor("#ffffff"), 2.0)
         self._pen_borda_destaque = QPen(QColor("#ffffff"), 2.6)
         self._pen_borda_sel = QPen(QColor("#ffffff"), 3.0)
-        self._pen_texto = QPen(QColor("#ffffff"))
+
+        self._pen_texto = QPen(QColor("#000000"))
+        self._pen_texto_alg = QPen(self._cor_texto_vertice_subgrafo)
 
         self._fonte_vertice = QFont("Sans Serif", 10, QFont.Weight.Bold)
 
@@ -108,14 +140,17 @@ class CanvasGrafo(QWidget):
 
         if self.modo_aresta:
             self.setCursor(Qt.CursorShape.CrossCursor)
-            self.mensagem_status.emit(
-                "Modo Aresta (E) ATIVO: Clique no vértice de origem e depois no vértice de destino.", 0
-            )
+            notificar(Mensagem.MODO_ARESTA)
+            # parent.acao_modo_vertice.setCheckable(False)
+            # self.mensagem_status.emit(
+            #     "Modo Aresta (E) ATIVO: Clique no vértice de origem e depois no vértice de destino.", 0
+            # )
         else:
             self.unsetCursor()
-            self.mensagem_status.emit(
-                "Clique para criar vértices | Arraste para mover vértices/arestas | Tecla Del para remover. Tecla E para modo Aresta.", 0
-            )
+            notificar(Mensagem.MODO_VERTICE)
+            # self.mensagem_status.emit(
+            #     "Clique para criar vértices | Arraste para mover vértices/arestas | Tecla Del para remover. Tecla E para modo Aresta.", 0
+            # )
         self.update()
 
     def alternar_modo_aresta(self) -> None:
@@ -365,15 +400,23 @@ class CanvasGrafo(QWidget):
         self.limpar_destaques_algoritmos()
         self._limpar_selecao()
 
-        # cor_vermelha = getattr(self, "_cor_nao_planar", QColor("#e53935"))
+        # cor_vermelha = getattr(self, "_cor_kuratowski", QColor("#e53935"))
 
         for u, v in self.modelo.grafo.edges():
             if (u, v) in arestas_kuratowski or (v, u) in arestas_kuratowski:
                 # print(u, v)
                 self._cores_arestas_alg[(min(u, v), max(u, v))
-                                        ] = self._cor_nao_planar
+                                        ] = self._cor_kuratowski
+                self._cores_vertices_alg[u] = self._cor_vertice_alg
+                self._cores_vertices_alg[v] = self._cor_vertice_alg
+                self._cores_textos_alg[u] = self._cor_texto_vertice_subgrafo
+                self._cores_textos_alg[v] = self._cor_texto_vertice_subgrafo
             else:
                 self._cores_arestas_alg[(min(u, v), max(u, v))] = self._cor_off
+                self._cores_vertices_alg[u] = self._cor_off
+                self._cores_vertices_alg[v] = self._cor_off
+                self._cores_textos_alg[u] = self._cor_texto_vertice_off
+                self._cores_textos_alg[v] = self._cor_texto_vertice_off
 
         self.mensagem_status.emit(
             "Subgrafo não planar destacado (K₅ / K₃,₃).", 3000)
@@ -491,6 +534,7 @@ class CanvasGrafo(QWidget):
             elif vid in self._cores_vertices_alg:
                 painter.setBrush(self._cores_vertices_alg[vid])
                 painter.setPen(self._pen_borda_vertice)
+                # painter.setPen(self._pen_texto)
             else:
                 painter.setBrush(self._cor_vertice)
                 painter.setPen(self._pen_borda_vertice)

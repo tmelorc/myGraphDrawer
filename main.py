@@ -26,7 +26,7 @@ def main() -> None:
     # depois do QApplication: QPixmap exige
     app.setWindowIcon(carregar_icone())
 
-    app.setStyle("Fusion")
+    # app.setStyle("Fusion")
 
     janela = JanelaPrincipal()
     janela.show()
