@@ -12,7 +12,7 @@ from PyQt6.QtWidgets import QWidget
 
 from modelo_grafo import ModeloGrafo
 from layouts import normalizar_layout, LAYOUTS
-from mensagens import Mensagem, notificar
+from mensagens import Mensagem, notificar, notificar_sequencia, definir_mensagem_principal
 
 
 # notificar(Mensagem.VERTICE_CRIADO, vid=vid, x=x, y=y)
@@ -140,14 +140,15 @@ class CanvasGrafo(QWidget):
 
         if self.modo_aresta:
             self.setCursor(Qt.CursorShape.CrossCursor)
-            notificar(Mensagem.MODO_ARESTA)
+            definir_mensagem_principal(Mensagem.MODO_ARESTA)
             # parent.acao_modo_vertice.setCheckable(False)
             # self.mensagem_status.emit(
             #     "Modo Aresta (E) ATIVO: Clique no vértice de origem e depois no vértice de destino.", 0
             # )
         else:
             self.unsetCursor()
-            notificar(Mensagem.MODO_VERTICE)
+            definir_mensagem_principal(Mensagem.MODO_VERTICE)
+            # notificar(Mensagem.MODO_VERTICE)
             # self.mensagem_status.emit(
             #     "Clique para criar vértices | Arraste para mover vértices/arestas | Tecla Del para remover. Tecla E para modo Aresta.", 0
             # )
@@ -194,6 +195,8 @@ class CanvasGrafo(QWidget):
         vid = self.modelo.adicionar_vertice(x, y)
         self.grafo_alterado.emit()
         self.update()
+        notificar_sequencia(Mensagem.VERTICE_CRIADO, Mensagem.MODO_VERTICE, params_temp={
+            "vid": vid, "x": x, "y": y})
         return vid
 
     def criar_aresta(self, u: int, v: int) -> bool:
@@ -201,6 +204,9 @@ class CanvasGrafo(QWidget):
         if criada:
             self.grafo_alterado.emit()
             self.update()
+            notificar_sequencia(
+                Mensagem.ARESTA_CRIADA, Mensagem.MODO_ARESTA, params_temp={"u": u, "v": v})
+        # todo: se aresta já existe, arrumar status bar para msg temp.
         return criada
 
     def excluir_selecionados(self) -> None:

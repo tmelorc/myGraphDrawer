@@ -57,7 +57,6 @@ class ModeloGrafo:
 
         self.grafo.add_node(vid)
         self.posicoes[vid] = (float(x), float(y))
-        print(vid, self.posicoes[vid])
         return vid
 
     def atualizar_posicao(self, vid: int, x: float, y: float) -> None:

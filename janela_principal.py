@@ -1,4 +1,6 @@
 # todo: implementar a funcao modo vertice para alternar com modo aresta
+# bug: no modo aresta, se 1o clique for no vazio, a notificação não fixa, pois criar vertice será chamado e isso fará a msg msg principal reaparecer
+
 import numpy as np
 from typing import List
 from PyQt6.QtCore import Qt
@@ -39,7 +41,7 @@ from gerador_grafos import GerenciadorGrafosPredefinidos, normalizar_layout
 from layouts import LAYOUTS
 from sobre import DialogoSobre, info_app
 
-from mensagens import conectar_status_bar, Mensagem, notificar, notificar_sequencia
+from mensagens import conectar_status_bar, Mensagem, notificar, notificar_sequencia, definir_mensagem_principal
 
 
 LIMITE_VERTICES_MATRIZ = 60
@@ -56,7 +58,8 @@ class JanelaPrincipal(QMainWindow):
         self.resize(1200, 900)
 
         conectar_status_bar(self.statusBar())
-        notificar(Mensagem.MODO_VERTICE)
+        definir_mensagem_principal(Mensagem.MODO_VERTICE)
+        # notificar(self.mensagem_padrao)
 
         self.modelo = ModeloGrafo()
         self.cena = CanvasGrafo(self.modelo, self)
@@ -133,7 +136,7 @@ class JanelaPrincipal(QMainWindow):
         self.acao_modo_vertice.setShortcut("V")
         self.acao_modo_vertice.setCheckable(True)
         self.acao_modo_vertice.triggered.connect(
-            self.cena.alternar_modo_aresta)  # <--- arrumar aqui
+            self.cena.alternar_modo_aresta)  # <--- arrumar aqui?
         self.addAction(self.acao_modo_vertice)
 
         self.acao_excluir = QAction("Excluir Selecionado", self)
@@ -270,10 +273,6 @@ class JanelaPrincipal(QMainWindow):
                                        #     }
                                        # """
                                        )
-
-        # self.statusBar().showMessage(
-        #     "Clique para adicionar vértices | Arraste vértices/arestas | Tecla E: Modo Aresta | Del: Excluir Seleção"
-        # )
 
     # =========================================================================
     # 2. PAINEL LATERAL DE ANÁLISE E MATRIZES
@@ -669,10 +668,11 @@ class JanelaPrincipal(QMainWindow):
         self._arquivo_atual = ""
         self._atualizar_titulo()
 
-        if self.cena.modo_aresta:
-            notificar_sequencia(Mensagem.NOVO_GRAFO, Mensagem.MODO_ARESTA)
-        else:
-            notificar_sequencia(Mensagem.NOVO_GRAFO, Mensagem.MODO_VERTICE)
+        notificar(Mensagem.NOVO_GRAFO)
+        # if self.cena.modo_aresta:
+        #     notificar_sequencia(Mensagem.NOVO_GRAFO, Mensagem.MODO_ARESTA)
+        # else:
+        #     notificar_sequencia(Mensagem.NOVO_GRAFO, Mensagem.MODO_VERTICE)
         # self.statusBar().showMessage("Novo grafo criado.", 3000)
 
     def salvar_json(self) -> None:

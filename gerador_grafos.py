@@ -19,6 +19,8 @@ class DefinicaoGrafo:
 
 _CATALOGO_GRAFOS: List[DefinicaoGrafo] = []
 
+MAX_ORDER_RANDOM_GRAPH = 15
+
 
 def registrar_grafo(nome: str, separador_antes: bool = False):
     """Decorador para cadastrar novos grafos predefinidos no menu."""
@@ -33,19 +35,49 @@ def registrar_grafo(nome: str, separador_antes: bool = False):
 # CATÁLOGO DE GRAFOS PREDEFINIDOS (NETWORKX + LAYOUTS NATIVOS)
 # =============================================================================
 
+# GRAFOS ALEATÓRIOS
+
+# todo: não está tão aleatório assim
 @registrar_grafo("Aleatório")
 def _gerar_aleatorio(parent: QWidget):
     # n, ok = QInputDialog.getInt(
     #     parent, "Grafo Aleatório", "Número de vértices (n):", 5, 1, 30, 1)
     # if not ok:
     #     return None
-    n = np.random.randint(2, 21)
+    n = np.random.randint(2, MAX_ORDER_RANDOM_GRAPH + 1)
+    g = nx.random_geometric_graph(n, radius=0.5)
+    pos = nx.get_node_attributes(g, "pos")
+    return g, pos
+
+
+@registrar_grafo("Aleatório (R_n)...")
+def _gerar_aleatorio_n(parent: QWidget):
+    n, ok = QInputDialog.getInt(
+        parent, "Grafo Aleatório", "Número de vértices (n):", 10, 1, 30, 1)
+    if not ok:
+        return None
+    # n = np.random.randint(2, MAX_ORDER_RANDOM_GRAPH + 1)
     g = nx.random_geometric_graph(n, radius=0.5)
     pos = nx.get_node_attributes(g, "pos")
     # g = nx.random_clustered_graph(n)
     # pos = nx.circular_layout(g)
     return g, pos
 
+
+@registrar_grafo("Aleatório d-regular...")
+def _gerar_aleatorio_regular(parent: QWidget):
+    return None
+
+
+@registrar_grafo("Árvore")
+def _gerar_arvore(parent: QWidget):
+    n = np.random.randint(2, 2*MAX_ORDER_RANDOM_GRAPH + 1)
+    g = nx.random_unlabeled_tree(n)
+    pos = nx.spring_layout(g)
+    return g, pos
+
+
+# GRAFOS CLÁSSICOS
 
 @registrar_grafo("Completo (K_n)...", separador_antes=True)
 def _gerar_completo(parent: QWidget):
@@ -193,6 +225,8 @@ def _gerar_karate(parent: QWidget):
     return g, pos
 
 
+# GRAFOS POLIEDRAIS
+
 @registrar_grafo("Tetraedro", separador_antes=True)
 def _gerar_tetraedro(parent: QWidget):
     g = nx.tetrahedral_graph()
@@ -257,6 +291,8 @@ class GerenciadorGrafosPredefinidos:
             acao = QAction(item.nome, self.janela)
             if item.nome == "Aleatório":
                 acao.setShortcut("Ctrl+R")
+            if item.nome == "Árvore":
+                acao.setShortcut("Ctrl+T")
             acao.triggered.connect(
                 lambda checked=False, definicao=item: self._aplicar_grafo(definicao))
             menu_grafos.addAction(acao)
